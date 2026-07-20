@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import type { HealthIndicatorResult } from '@nestjs/terminus';
 import { HealthIndicatorService } from '@nestjs/terminus';
 import { sql } from 'drizzle-orm';
-import { DatabaseService } from '../database/database.service';
+import { DatabaseService } from '@/database/database.service';
 
 @Injectable()
 export class DatabaseHealthIndicator {

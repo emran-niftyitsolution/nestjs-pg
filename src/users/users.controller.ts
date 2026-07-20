@@ -5,73 +5,53 @@ import {
   Controller,
   Delete,
   Get,
-  Param,
-  ParseUUIDPipe,
   Patch,
-  Post,
-  Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiConflictResponse,
-  ApiCreatedResponse,
-  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
-  ApiParam,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { CreateUserDto } from './dto/create-user.dto';
-import { PaginatedUsersResponseDto } from './dto/paginated-users-response.dto';
-import { PaginationQueryDto } from './dto/pagination-query.dto';
+import type { AuthenticatedUser } from '@/auth/auth.types';
+import { CurrentUser } from '@/auth/current-user.decorator';
+import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
 
+// Self-service only. Admin-wide user management lives in AdminUsersController
+// (/admin/users), gated by RolesGuard instead of "is this your own id".
 @ApiTags('users')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create a user' })
-  @ApiCreatedResponse({ type: UserResponseDto })
+  @Get('me')
+  @ApiOperation({ summary: 'Get my profile' })
+  @ApiOkResponse({ type: UserResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Invalid or missing token' })
+  me(@CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.findOne(user.id);
+  }
+
+  @Patch('me')
+  @ApiOperation({ summary: 'Update my profile' })
+  @ApiOkResponse({ type: UserResponseDto })
   @ApiConflictResponse({ description: 'Email is already in use' })
-  create(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  updateMe(@CurrentUser() user: AuthenticatedUser, @Body() dto: UpdateUserDto) {
+    return this.usersService.update(user.id, dto);
   }
 
-  @Get()
-  @ApiOperation({ summary: 'List users' })
-  @ApiOkResponse({ type: PaginatedUsersResponseDto })
-  findAll(@Query() query: PaginationQueryDto) {
-    return this.usersService.findAll(query);
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a user by id' })
-  @ApiParam({ name: 'id', format: 'uuid' })
+  @Delete('me')
+  @ApiOperation({ summary: 'Delete my account' })
   @ApiOkResponse({ type: UserResponseDto })
-  @ApiNotFoundResponse({ description: 'User not found' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.findOne(id);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a user' })
-  @ApiParam({ name: 'id', format: 'uuid' })
-  @ApiOkResponse({ type: UserResponseDto })
-  @ApiNotFoundResponse({ description: 'User not found' })
-  @ApiConflictResponse({ description: 'Email is already in use' })
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateUserDto) {
-    return this.usersService.update(id, dto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a user' })
-  @ApiParam({ name: 'id', format: 'uuid' })
-  @ApiOkResponse({ type: UserResponseDto })
-  @ApiNotFoundResponse({ description: 'User not found' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.remove(id);
+  removeMe(@CurrentUser() user: AuthenticatedUser) {
+    return this.usersService.remove(user.id);
   }
 }

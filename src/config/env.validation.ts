@@ -32,6 +32,16 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   JWT_EXPIRES_IN: string = '15m';
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  REFRESH_TOKEN_TTL_DAYS: number = 7;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  PASSWORD_RESET_TTL_MINUTES: number = 15;
 }
 
 export function validate(

@@ -1,0 +1,11 @@
+// src/users/dto/update-user-role.dto.ts
+
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEnum } from 'class-validator';
+import { Role } from '@/common/enums/role.enum';
+
+export class UpdateUserRoleDto {
+  @ApiProperty({ enum: Role })
+  @IsEnum(Role)
+  role!: Role;
+}

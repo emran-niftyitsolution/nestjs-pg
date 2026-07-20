@@ -3,9 +3,9 @@
 import {
   Body,
   Controller,
-  Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -18,13 +18,18 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { UserResponseDto } from '../users/dto/user-response.dto';
+import { MessageResponseDto } from '@/common/dto/message-response.dto';
+import { CreateUserDto } from '@/users/dto/create-user.dto';
 import { AuthService } from './auth.service';
 import type { AuthenticatedUser } from './auth.types';
 import { CurrentUser } from './current-user.decorator';
 import { AuthResponseDto } from './dto/auth-response.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { TokenPairResponseDto } from './dto/token-pair-response.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 @ApiTags('auth')
@@ -33,7 +38,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  @ApiOperation({ summary: 'Register a new user and issue an access token' })
+  @ApiOperation({ summary: 'Register a new user and issue a token pair' })
   @ApiCreatedResponse({ type: AuthResponseDto })
   @ApiConflictResponse({ description: 'Email is already in use' })
   register(@Body() dto: CreateUserDto): Promise<AuthResponseDto> {
@@ -49,13 +54,58 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
-  @Get('me')
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Exchange a refresh token for a new token pair' })
+  @ApiOkResponse({ type: TokenPairResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Invalid or expired refresh token' })
+  refresh(@Body() dto: RefreshTokenDto): Promise<TokenPairResponseDto> {
+    return this.authService.refresh(dto.refreshToken);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get the currently authenticated user' })
-  @ApiOkResponse({ type: UserResponseDto })
+  @ApiOperation({ summary: 'Revoke a refresh token (end one session)' })
+  @ApiOkResponse({ type: MessageResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid or missing token' })
-  me(@CurrentUser() user: AuthenticatedUser) {
-    return this.authService.getProfile(user.id);
+  logout(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: RefreshTokenDto,
+  ): Promise<MessageResponseDto> {
+    return this.authService.logout(user.id, dto.refreshToken);
+  }
+
+  @Patch('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change the current password' })
+  @ApiOkResponse({ type: MessageResponseDto })
+  @ApiUnauthorizedResponse({
+    description: 'Invalid or missing token, or current password is wrong',
+  })
+  changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<MessageResponseDto> {
+    return this.authService.changePassword(user.id, dto);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request a password reset token' })
+  @ApiOkResponse({ type: MessageResponseDto })
+  forgotPassword(@Body() dto: ForgotPasswordDto): Promise<MessageResponseDto> {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using a reset token' })
+  @ApiOkResponse({ type: MessageResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Invalid or expired reset token' })
+  resetPassword(@Body() dto: ResetPasswordDto): Promise<MessageResponseDto> {
+    return this.authService.resetPassword(dto.token, dto.newPassword);
   }
 }
