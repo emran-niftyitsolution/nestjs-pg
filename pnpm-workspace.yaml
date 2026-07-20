@@ -1,7 +1,7 @@
 allowBuilds:
   '@scarf/scarf': true
-  bcrypt: true
+  argon2: true
   esbuild: true
 onlyBuiltDependencies:
-  - bcrypt
+  - argon2
   - esbuild

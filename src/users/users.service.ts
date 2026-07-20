@@ -6,15 +6,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { count, DrizzleQueryError, eq } from 'drizzle-orm';
-import * as bcrypt from 'bcrypt';
+import { hash as argon2Hash } from 'argon2';
 import { DatabaseService } from '../database/database.service';
-import { users } from '../database/schema';
+import { User, users } from '../database/schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { PaginatedResult } from './dto/paginated-result.interface';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
-const BCRYPT_SALT_ROUNDS = 12;
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 
 const safeColumns = {
@@ -62,7 +61,7 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto): Promise<SafeUser> {
-    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS);
+    const passwordHash = (await argon2Hash(dto.password)) as string;
 
     try {
       const [user] = await this.db
@@ -120,6 +119,17 @@ export class UsersService {
     };
   }
 
+  /** Includes the password hash — for internal use by AuthService only, never return this via a controller. */
+  async findByEmail(email: string): Promise<User | undefined> {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    return user;
+  }
+
   async findOne(id: string): Promise<SafeUser> {
     const [user] = await this.db
       .select(safeColumns)
@@ -139,7 +149,7 @@ export class UsersService {
 
     const updateData: Partial<typeof users.$inferInsert> = { ...rest };
     if (password) {
-      updateData.password = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+      updateData.password = (await argon2Hash(password)) as string;
     }
 
     if (Object.keys(updateData).length === 0) {

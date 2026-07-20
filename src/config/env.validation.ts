@@ -4,10 +4,12 @@ import { plainToInstance } from 'class-transformer';
 import {
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsUrl,
   Max,
   Min,
+  MinLength,
   validateSync,
 } from 'class-validator';
 
@@ -21,6 +23,15 @@ class EnvironmentVariables {
   @IsNotEmpty()
   @IsUrl({ protocols: ['postgres', 'postgresql'], require_tld: false })
   DATABASE_URL!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(32)
+  JWT_SECRET!: string;
+
+  @IsOptional()
+  @IsString()
+  JWT_EXPIRES_IN: string = '15m';
 }
 
 export function validate(

@@ -29,11 +29,10 @@ export class CreateUserDto {
   @MaxLength(255)
   email!: string;
 
-  // bcrypt silently truncates input beyond 72 bytes, so longer passwords are capped here.
-  @ApiProperty({ minLength: 8, maxLength: 72, format: 'password' })
+  @ApiProperty({ minLength: 8, maxLength: 128, format: 'password' })
   @IsString()
   @MinLength(8)
-  @MaxLength(72)
+  @MaxLength(128)
   password!: string;
 
   @ApiPropertyOptional({ maxLength: 20 })
