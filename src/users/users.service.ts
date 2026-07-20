@@ -5,14 +5,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { count, DrizzleQueryError, eq } from 'drizzle-orm';
 import { hash as argon2Hash } from 'argon2';
+import { count, DrizzleQueryError, eq } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
-import { User, users } from '../database/schema';
-import { CreateUserDto } from './dto/create-user.dto';
-import { PaginatedResult } from './dto/paginated-result.interface';
-import { PaginationQueryDto } from './dto/pagination-query.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { type User, users } from '../database/schema';
+import type { CreateUserDto } from './dto/create-user.dto';
+import type { PaginatedResult } from './dto/paginated-result.interface';
+import type { PaginationQueryDto } from './dto/pagination-query.dto';
+import type { UpdateUserDto } from './dto/update-user.dto';
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 

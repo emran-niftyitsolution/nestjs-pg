@@ -1,10 +1,8 @@
 // src/health/database.health.ts
 
 import { Injectable } from '@nestjs/common';
-import {
-  HealthIndicatorResult,
-  HealthIndicatorService,
-} from '@nestjs/terminus';
+import type { HealthIndicatorResult } from '@nestjs/terminus';
+import { HealthIndicatorService } from '@nestjs/terminus';
 import { sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service';
 
