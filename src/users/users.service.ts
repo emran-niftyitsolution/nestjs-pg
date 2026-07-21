@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { hash as argon2Hash } from 'argon2';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { CursorPaginationQueryDto } from '@/common/dto/cursor-pagination-query.dto';
 import type { Role } from '@/common/enums/role.enum';
 import type { CursorPaginatedResult } from '@/common/interfaces/cursor-paginated-result.interface';
@@ -111,12 +111,17 @@ export class UsersService {
     return { data, meta: { limit, hasNextPage, nextCursor } };
   }
 
-  /** Includes the password hash — for internal use by AuthService only, never return this via a controller. */
+  /**
+   * Case-insensitive, matching the `lower(email)` unique index — "User@x.com"
+   * must find the same account as "user@x.com" for both login and the
+   * duplicate-email check in create()/update().
+   * Includes the password hash — for internal use by AuthService only, never return this via a controller.
+   */
   async findByEmail(email: string): Promise<User | undefined> {
     const [user] = await this.db
       .select()
       .from(users)
-      .where(eq(users.email, email))
+      .where(sql`lower(${users.email}) = lower(${email})`)
       .limit(1);
 
     return user;

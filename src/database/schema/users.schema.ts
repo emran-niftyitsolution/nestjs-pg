@@ -1,5 +1,6 @@
 // src/database/schema/users.schema.ts
 
+import { sql } from 'drizzle-orm';
 import {
   boolean,
   index,
@@ -43,8 +44,13 @@ export const users = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex('users_email_unique').on(table.email),
-    index('users_email_idx').on(table.email),
+    // Expression index over lower(email), same trick as brands' lower(name)
+    // and coupons' upper(code): without it, "user@x.com" and "User@x.com"
+    // pass the plain UNIQUE as two different values, letting someone create
+    // a second account (or get locked out at login by a case mismatch) for
+    // an email a human reads as identical. This single index also covers
+    // lookups — no separate plain btree on email needed.
+    uniqueIndex('users_email_unique').on(sql`lower(${table.email})`),
     index('users_active_idx').on(table.isActive),
     // Low-cardinality column (2 values today) — a plain index still helps
     // the admin "list users by role" query avoid a full table scan as the
