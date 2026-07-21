@@ -1,7 +1,7 @@
 // src/dashboard/dashboard.service.ts
 
 import { Injectable } from '@nestjs/common';
-import { desc, eq, inArray, lte, sql } from 'drizzle-orm';
+import { count, desc, eq, inArray, lte, sql, sum } from 'drizzle-orm';
 import { OrderStatus } from '@/common/enums/order-status.enum';
 import { Role } from '@/common/enums/role.enum';
 import { DatabaseService } from '@/database/database.service';
@@ -42,24 +42,20 @@ export class DashboardService {
 
   /** Three independent aggregates — run as separate queries in parallel rather than joined/CTE'd together, since they don't share a FROM clause. */
   async getSummary(): Promise<DashboardSummaryResponseDto> {
-    const [[orderStats], [productStats], [customerStats]] = await Promise.all(
-      [
-        this.db
-          .select({
-            totalOrders: sql<number>`count(*)::int`,
-            totalRevenue: sql<number>`coalesce(sum(${orders.total}), 0)`,
-          })
-          .from(orders)
-          .where(inArray(orders.status, REVENUE_STATUSES)),
-        this.db
-          .select({ totalProducts: sql<number>`count(*)::int` })
-          .from(products),
-        this.db
-          .select({ totalCustomers: sql<number>`count(*)::int` })
-          .from(users)
-          .where(eq(users.role, Role.Customer)),
-      ],
-    );
+    const [[orderStats], [productStats], [customerStats]] = await Promise.all([
+      this.db
+        .select({
+          totalOrders: count(),
+          totalRevenue: sum(orders.total),
+        })
+        .from(orders)
+        .where(inArray(orders.status, REVENUE_STATUSES)),
+      this.db.select({ totalProducts: count() }).from(products),
+      this.db
+        .select({ totalCustomers: count() })
+        .from(users)
+        .where(eq(users.role, Role.Customer)),
+    ]);
 
     return {
       totalRevenue: Number(orderStats.totalRevenue),
@@ -101,10 +97,8 @@ export class DashboardService {
         .select({
           categoryId: categories.id,
           name: categories.name,
-          unitsSold: sql<number>`sum(${orderItems.quantity})::int`.as(
-            'units_sold',
-          ),
-          revenue: sql<number>`sum(${orderItems.lineTotal})`.as('revenue'),
+          unitsSold: sum(orderItems.quantity).as('units_sold'),
+          revenue: sum(orderItems.lineTotal).as('revenue'),
         })
         .from(orderItems)
         .innerJoin(orders, eq(orders.id, orderItems.orderId))
@@ -131,7 +125,7 @@ export class DashboardService {
       rank: row.rank,
       categoryId: row.categoryId,
       name: row.name,
-      unitsSold: row.unitsSold,
+      unitsSold: Number(row.unitsSold),
       revenue: Number(row.revenue),
     }));
   }
