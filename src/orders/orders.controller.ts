@@ -8,7 +8,6 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -23,7 +22,6 @@ import {
 } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/auth/current-user.decorator';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { CursorPaginatedResponseDto } from '@/common/dto/cursor-paginated-response.dto';
 import { CheckoutDto } from './dto/checkout.dto';
 import { OrderQueryDto } from './dto/order-query.dto';
@@ -33,7 +31,6 @@ import { OrdersService } from './orders.service';
 // Fully self-service — a customer only ever sees and acts on their own orders.
 @ApiTags('orders')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @ApiUnauthorizedResponse({ description: 'Invalid or missing token' })
 @Controller('orders')
 export class OrdersController {

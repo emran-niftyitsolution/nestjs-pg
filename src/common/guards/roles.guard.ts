@@ -16,8 +16,8 @@ interface RequestWithUser {
 }
 
 /**
- * Authorization only — assumes JwtAuthGuard already ran and populated
- * `request.user`. Always list it after JwtAuthGuard: `@UseGuards(JwtAuthGuard, RolesGuard)`.
+ * Authorization only — assumes the global JwtAuthGuard already ran and
+ * populated `request.user`. Apply alone: `@UseGuards(RolesGuard)`.
  */
 @Injectable()
 export class RolesGuard implements CanActivate {

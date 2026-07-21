@@ -8,7 +8,6 @@ import {
   ParseUUIDPipe,
   Patch,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -21,7 +20,6 @@ import {
 } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/auth/current-user.decorator';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { CursorPaginatedResponseDto } from '@/common/dto/cursor-paginated-response.dto';
 import { NotificationQueryDto } from './dto/notification-query.dto';
 import { NotificationResponseDto } from './dto/notification-response.dto';
@@ -30,7 +28,6 @@ import { NotificationsService } from './notifications.service';
 // Fully self-service — a user only ever sees their own notifications.
 @ApiTags('notifications')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @ApiUnauthorizedResponse({ description: 'Invalid or missing token' })
 @Controller('notifications')
 export class NotificationsController {

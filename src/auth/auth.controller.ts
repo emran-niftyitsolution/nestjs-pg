@@ -7,7 +7,6 @@ import {
   HttpStatus,
   Patch,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -18,6 +17,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Public } from '@/common/decorators/public.decorator';
 import { MessageResponseDto } from '@/common/dto/message-response.dto';
 import { CreateUserDto } from '@/users/dto/create-user.dto';
 import { AuthService } from './auth.service';
@@ -30,7 +30,6 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { TokenPairResponseDto } from './dto/token-pair-response.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -38,6 +37,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @Public()
   @ApiOperation({ summary: 'Register a new user and issue a token pair' })
   @ApiCreatedResponse({ type: AuthResponseDto })
   @ApiConflictResponse({ description: 'Email is already in use' })
@@ -47,6 +47,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @Public()
   @ApiOperation({ summary: 'Log in with email and password' })
   @ApiOkResponse({ type: AuthResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
@@ -56,6 +57,7 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @Public()
   @ApiOperation({ summary: 'Exchange a refresh token for a new token pair' })
   @ApiOkResponse({ type: TokenPairResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid or expired refresh token' })
@@ -65,7 +67,6 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Revoke a refresh token (end one session)' })
   @ApiOkResponse({ type: MessageResponseDto })
@@ -78,7 +79,6 @@ export class AuthController {
   }
 
   @Patch('change-password')
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Change the current password' })
   @ApiOkResponse({ type: MessageResponseDto })
@@ -94,6 +94,7 @@ export class AuthController {
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
+  @Public()
   @ApiOperation({ summary: 'Request a password reset token' })
   @ApiOkResponse({ type: MessageResponseDto })
   forgotPassword(@Body() dto: ForgotPasswordDto): Promise<MessageResponseDto> {
@@ -102,6 +103,7 @@ export class AuthController {
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
+  @Public()
   @ApiOperation({ summary: 'Reset password using a reset token' })
   @ApiOkResponse({ type: MessageResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid or expired reset token' })

@@ -9,7 +9,6 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -23,7 +22,6 @@ import {
 } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/auth/current-user.decorator';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { AddressesService } from './addresses.service';
 import { AddressResponseDto } from './dto/address-response.dto';
 import { CreateAddressDto } from './dto/create-address.dto';
@@ -33,7 +31,6 @@ import { UpdateAddressDto } from './dto/update-address.dto';
 // nothing in the PRD's admin capability list mentions addresses.
 @ApiTags('addresses')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @ApiUnauthorizedResponse({ description: 'Invalid or missing token' })
 @Controller('addresses')
 export class AddressesController {

@@ -8,10 +8,12 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { Public } from '@/common/decorators/public.decorator';
 import { ProductImageResponseDto } from './dto/product-image-response.dto';
 import { ProductImagesService } from './product-images.service';
 
 @ApiTags('products')
+@Public()
 @Controller('products/:productId/images')
 export class ProductImagesController {
   constructor(private readonly productImagesService: ProductImagesService) {}

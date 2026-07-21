@@ -7,7 +7,6 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -22,7 +21,6 @@ import {
 } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/auth/current-user.decorator';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PaymentResponseDto } from './dto/payment-response.dto';
 import { PaymentsService } from './payments.service';
@@ -32,7 +30,6 @@ import { PaymentsService } from './payments.service';
 // meaningless without the order it's for.
 @ApiTags('orders')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @ApiUnauthorizedResponse({ description: 'Invalid or missing token' })
 @Controller('orders/:orderId/payments')
 export class PaymentsController {

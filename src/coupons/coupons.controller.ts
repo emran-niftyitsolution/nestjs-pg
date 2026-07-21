@@ -1,13 +1,6 @@
 // src/coupons/coupons.controller.ts
 
-import {
-  Body,
-  Controller,
-  HttpCode,
-  HttpStatus,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -17,14 +10,12 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { CouponsService } from './coupons.service';
 import { CouponValidationResponseDto } from './dto/coupon-validation-response.dto';
 import { ValidateCouponDto } from './dto/validate-coupon.dto';
 
 @ApiTags('coupons')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @ApiUnauthorizedResponse({ description: 'Invalid or missing token' })
 @Controller('coupons')
 export class CouponsController {

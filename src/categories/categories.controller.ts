@@ -24,7 +24,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
+import { Public } from '@/common/decorators/public.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { CursorPaginatedResponseDto } from '@/common/dto/cursor-paginated-response.dto';
 import { Role } from '@/common/enums/role.enum';
@@ -44,6 +44,7 @@ export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Get()
+  @Public()
   @ApiOperation({
     summary:
       'List categories (cursor-paginated, optionally filtered by parent)',
@@ -54,6 +55,7 @@ export class CategoriesController {
   }
 
   @Get('tree')
+  @Public()
   @ApiOperation({ summary: 'Get the full category tree' })
   @ApiOkResponse({ type: [CategoryTreeNodeDto] })
   findTree() {
@@ -61,6 +63,7 @@ export class CategoriesController {
   }
 
   @Get(':id')
+  @Public()
   @ApiOperation({ summary: 'Get a category by id' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ type: CategoryResponseDto })
@@ -70,6 +73,7 @@ export class CategoriesController {
   }
 
   @Get(':id/ancestors')
+  @Public()
   @ApiOperation({
     summary: 'Get the breadcrumb path (root to parent) for a category',
   })
@@ -81,6 +85,7 @@ export class CategoriesController {
   }
 
   @Get(':id/descendants')
+  @Public()
   @ApiOperation({ summary: 'Get the subtree below a category' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ type: [CategoryTreeNodeDto] })
@@ -90,7 +95,7 @@ export class CategoriesController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles(Role.Admin)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a category' })
@@ -103,7 +108,7 @@ export class CategoriesController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles(Role.Admin)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a category' })
@@ -123,7 +128,7 @@ export class CategoriesController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles(Role.Admin)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a category' })

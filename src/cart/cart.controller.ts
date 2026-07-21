@@ -9,7 +9,6 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -23,7 +22,6 @@ import {
 } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/auth/current-user.decorator';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { CartService } from './cart.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { CartResponseDto } from './dto/cart-response.dto';
@@ -32,7 +30,6 @@ import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 // Fully self-service — "the cart" always means the current user's own cart.
 @ApiTags('cart')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @ApiUnauthorizedResponse({ description: 'Invalid or missing token' })
 @Controller('cart')
 export class CartController {

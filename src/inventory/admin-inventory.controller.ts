@@ -17,7 +17,6 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Role } from '@/common/enums/role.enum';
 import { RolesGuard } from '@/common/guards/roles.guard';
@@ -26,7 +25,7 @@ import { InventoryService } from './inventory.service';
 
 @ApiTags('admin / inventory')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.Admin)
 @ApiUnauthorizedResponse({ description: 'Invalid or missing token' })
 @ApiForbiddenResponse({ description: 'Caller is not an admin' })

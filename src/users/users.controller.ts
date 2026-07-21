@@ -1,13 +1,6 @@
 // src/users/users.controller.ts
 
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Patch,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiConflictResponse,
@@ -18,7 +11,6 @@ import {
 } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/auth/current-user.decorator';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
@@ -27,7 +19,6 @@ import { UsersService } from './users.service';
 // (/admin/users), gated by RolesGuard instead of "is this your own id".
 @ApiTags('users')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

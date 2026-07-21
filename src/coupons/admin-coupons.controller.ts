@@ -24,7 +24,6 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { CursorPaginatedResponseDto } from '@/common/dto/cursor-paginated-response.dto';
 import { Role } from '@/common/enums/role.enum';
@@ -37,7 +36,7 @@ import { UpdateCouponDto } from './dto/update-coupon.dto';
 
 @ApiTags('admin / coupons')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.Admin)
 @ApiUnauthorizedResponse({ description: 'Invalid or missing token' })
 @ApiForbiddenResponse({ description: 'Caller is not an admin' })

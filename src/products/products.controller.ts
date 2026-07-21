@@ -8,6 +8,7 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { Public } from '@/common/decorators/public.decorator';
 import { CursorPaginatedResponseDto } from '@/common/dto/cursor-paginated-response.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
 import { ProductResponseDto } from './dto/product-response.dto';
@@ -16,6 +17,7 @@ import { ProductsService } from './products.service';
 // Fully public — customers browse/search the catalog without logging in.
 // Only ever surfaces `active` products; draft/archived live under /admin.
 @ApiTags('products')
+@Public()
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}

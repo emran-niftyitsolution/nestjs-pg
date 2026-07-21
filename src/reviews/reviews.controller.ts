@@ -10,7 +10,6 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -26,7 +25,7 @@ import {
 } from '@nestjs/swagger';
 import type { AuthenticatedUser } from '@/auth/auth.types';
 import { CurrentUser } from '@/auth/current-user.decorator';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
+import { Public } from '@/common/decorators/public.decorator';
 import { CursorPaginatedResponseDto } from '@/common/dto/cursor-paginated-response.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { ReviewQueryDto } from './dto/review-query.dto';
@@ -43,6 +42,7 @@ export class ProductReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
   @Get()
+  @Public()
   @ApiOperation({ summary: 'List reviews for a product (public)' })
   @ApiParam({ name: 'productId', format: 'uuid' })
   @ApiOkResponse({ type: CursorPaginatedResponseDto(ReviewResponseDto) })
@@ -54,6 +54,7 @@ export class ProductReviewsController {
   }
 
   @Get('summary')
+  @Public()
   @ApiOperation({ summary: 'Average rating and review count for a product' })
   @ApiParam({ name: 'productId', format: 'uuid' })
   @ApiOkResponse({ type: ReviewSummaryResponseDto })
@@ -62,7 +63,6 @@ export class ProductReviewsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Review a product (verified buyers only)' })
   @ApiParam({ name: 'productId', format: 'uuid' })
@@ -83,7 +83,6 @@ export class ProductReviewsController {
 // review id alone (plus ownership) is enough.
 @ApiTags('reviews')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @ApiUnauthorizedResponse({ description: 'Invalid or missing token' })
 @Controller('reviews')
 export class ReviewsController {

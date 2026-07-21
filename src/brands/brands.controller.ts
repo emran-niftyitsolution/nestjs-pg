@@ -24,7 +24,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
+import { Public } from '@/common/decorators/public.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { CursorPaginatedResponseDto } from '@/common/dto/cursor-paginated-response.dto';
 import { Role } from '@/common/enums/role.enum';
@@ -43,6 +43,7 @@ export class BrandsController {
   constructor(private readonly brandsService: BrandsService) {}
 
   @Get()
+  @Public()
   @ApiOperation({ summary: 'List brands (cursor-paginated)' })
   @ApiOkResponse({ type: CursorPaginatedResponseDto(BrandResponseDto) })
   findAll(@Query() query: BrandQueryDto) {
@@ -50,6 +51,7 @@ export class BrandsController {
   }
 
   @Get(':id')
+  @Public()
   @ApiOperation({ summary: 'Get a brand by id' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ type: BrandResponseDto })
@@ -59,7 +61,7 @@ export class BrandsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles(Role.Admin)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a brand' })
@@ -72,7 +74,7 @@ export class BrandsController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles(Role.Admin)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a brand' })
@@ -87,7 +89,7 @@ export class BrandsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles(Role.Admin)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a brand' })
