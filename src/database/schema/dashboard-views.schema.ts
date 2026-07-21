@@ -21,11 +21,15 @@ const REVENUE_STATUSES = sql`('paid', 'processing', 'shipped', 'delivered', 'ref
  * the same definition of "best-selling" for free.
  */
 export const bestSellingProductsView = pgView('best_selling_products_view', {
-  productId: uuid('product_id'),
-  name: varchar('name', { length: 200 }),
-  slug: varchar('slug', { length: 220 }),
-  unitsSold: integer('units_sold'),
-  revenue: numeric('revenue', { precision: 12, scale: 2, mode: 'number' }),
+  productId: uuid('product_id').notNull(),
+  name: varchar('name', { length: 200 }).notNull(),
+  slug: varchar('slug', { length: 220 }).notNull(),
+  unitsSold: integer('units_sold').notNull(),
+  revenue: numeric('revenue', {
+    precision: 12,
+    scale: 2,
+    mode: 'number',
+  }).notNull(),
 }).as(sql`
   SELECT p.id AS product_id, p.name, p.slug,
          SUM(oi.quantity)::int AS units_sold,
@@ -44,11 +48,11 @@ export const bestSellingProductsView = pgView('best_selling_products_view', {
  * products sort first even without an explicit ORDER BY downstream.
  */
 export const lowStockProductsView = pgView('low_stock_products_view', {
-  id: uuid('id'),
-  name: varchar('name', { length: 200 }),
-  sku: varchar('sku', { length: 64 }),
-  stock: integer('stock'),
-  categoryId: uuid('category_id'),
+  id: uuid('id').notNull(),
+  name: varchar('name', { length: 200 }).notNull(),
+  sku: varchar('sku', { length: 64 }).notNull(),
+  stock: integer('stock').notNull(),
+  categoryId: uuid('category_id').notNull(),
 }).as(sql`
   SELECT id, name, sku, stock, category_id
   FROM products
@@ -57,9 +61,13 @@ export const lowStockProductsView = pgView('low_stock_products_view', {
 `);
 
 export const monthlySalesView = pgView('monthly_sales_view', {
-  month: timestamp('month', { withTimezone: true }),
-  orderCount: integer('order_count'),
-  revenue: numeric('revenue', { precision: 12, scale: 2, mode: 'number' }),
+  month: timestamp('month', { withTimezone: true }).notNull(),
+  orderCount: integer('order_count').notNull(),
+  revenue: numeric('revenue', {
+    precision: 12,
+    scale: 2,
+    mode: 'number',
+  }).notNull(),
 }).as(sql`
   SELECT date_trunc('month', created_at) AS month,
          COUNT(*)::int AS order_count,
