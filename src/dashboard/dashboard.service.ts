@@ -88,8 +88,12 @@ export class DashboardService {
         .select({
           categoryId: categories.id,
           name: categories.name,
-          unitsSold: sum(orderItems.quantity).as('units_sold'),
-          revenue: sum(orderItems.lineTotal).as('revenue'),
+          unitsSold: sql<number>`coalesce(${sum(orderItems.quantity)}, 0)`
+            .mapWith(Number)
+            .as('units_sold'),
+          revenue: sql<number>`coalesce(${sum(orderItems.lineTotal)}, 0)`
+            .mapWith(Number)
+            .as('revenue'),
         })
         .from(orderItems)
         .innerJoin(orders, eq(orders.id, orderItems.orderId))
@@ -99,26 +103,18 @@ export class DashboardService {
         .groupBy(categories.id, categories.name),
     );
 
-    const rows = await this.db
+    return this.db
       .with(categoryRevenue)
       .select({
+        rank: sql<number>`rank() over (order by ${categoryRevenue.revenue} desc)::int`,
         categoryId: categoryRevenue.categoryId,
         name: categoryRevenue.name,
         unitsSold: categoryRevenue.unitsSold,
         revenue: categoryRevenue.revenue,
-        rank: sql<number>`rank() over (order by ${categoryRevenue.revenue} desc)::int`,
       })
       .from(categoryRevenue)
       .orderBy(desc(categoryRevenue.revenue))
       .limit(limit);
-
-    return rows.map((row) => ({
-      rank: row.rank,
-      categoryId: row.categoryId,
-      name: row.name,
-      unitsSold: Number(row.unitsSold),
-      revenue: Number(row.revenue),
-    }));
   }
 
   async getMonthlySales(months: number): Promise<MonthlySalesResponseDto[]> {
