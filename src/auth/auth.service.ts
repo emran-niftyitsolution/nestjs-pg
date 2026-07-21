@@ -4,6 +4,8 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { verify as argon2Verify } from 'argon2';
 import { MessageResponseDto } from '@/common/dto/message-response.dto';
+import { NotificationType } from '@/common/enums/notification-type.enum';
+import { NotificationsService } from '@/notifications/notifications.service';
 import { CreateUserDto } from '@/users/dto/create-user.dto';
 import { SafeUser, UsersService } from '@/users/users.service';
 import { JwtPayload } from './auth.types';
@@ -23,6 +25,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly refreshTokenService: RefreshTokenService,
     private readonly passwordResetTokenService: PasswordResetTokenService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async register(dto: CreateUserDto): Promise<AuthResponseDto> {
@@ -83,6 +86,7 @@ export class AuthService {
     await this.usersService.update(userId, { password: dto.newPassword });
     // Force every other session to log in again with the new password.
     await this.refreshTokenService.revokeAllForUser(userId);
+    await this.notifyPasswordChanged(userId);
 
     this.logger.log(`User ${userId} changed their password`);
     return { message: 'Password updated successfully' };
@@ -125,9 +129,19 @@ export class AuthService {
 
     await this.usersService.update(userId, { password: newPassword });
     await this.refreshTokenService.revokeAllForUser(userId);
+    await this.notifyPasswordChanged(userId);
 
     this.logger.log(`User ${userId} reset their password`);
     return { message: 'Password has been reset successfully' };
+  }
+
+  private async notifyPasswordChanged(userId: string): Promise<void> {
+    await this.notificationsService.create(
+      userId,
+      NotificationType.PasswordChanged,
+      'Password changed',
+      'Your password was just changed. If this wasn’t you, reset it again immediately.',
+    );
   }
 
   private async validateUser(

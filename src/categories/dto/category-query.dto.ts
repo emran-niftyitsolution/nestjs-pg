@@ -1,8 +1,8 @@
 // src/categories/dto/category-query.dto.ts
 
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import { IsBoolean, IsOptional, IsUUID } from 'class-validator';
+import { ToBoolean } from '@/common/decorators/to-boolean.decorator';
 import { CursorPaginationQueryDto } from '@/common/dto/cursor-pagination-query.dto';
 
 export class CategoryQueryDto extends CursorPaginationQueryDto {
@@ -18,7 +18,7 @@ export class CategoryQueryDto extends CursorPaginationQueryDto {
     description: 'Return only top-level (root) categories',
   })
   @IsOptional()
-  @Type(() => Boolean)
+  @ToBoolean()
   @IsBoolean()
   topLevelOnly?: boolean;
 }

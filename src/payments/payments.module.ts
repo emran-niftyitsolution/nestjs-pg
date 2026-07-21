@@ -1,0 +1,15 @@
+// src/payments/payments.module.ts
+
+import { Module } from '@nestjs/common';
+import { OrdersModule } from '@/orders/orders.module';
+import { AdminPaymentsController } from './admin-payments.controller';
+import { PaymentsController } from './payments.controller';
+import { PaymentsService } from './payments.service';
+
+@Module({
+  imports: [OrdersModule],
+  controllers: [PaymentsController, AdminPaymentsController],
+  providers: [PaymentsService],
+  exports: [PaymentsService],
+})
+export class PaymentsModule {}
