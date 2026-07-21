@@ -1,39 +1,21 @@
 // src/coupons/dto/coupon-response.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 import { CouponType } from '@/common/enums/coupon-type.enum';
 
-export class CouponResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+export const couponResponseSchema = z.object({
+  id: z.uuid(),
+  code: z.string(),
+  type: z.enum(CouponType),
+  value: z.number(),
+  minPurchase: z.number(),
+  usageLimit: z.number().nullable(),
+  usageCount: z.number(),
+  expiresAt: z.iso.datetime().nullable(),
+  isActive: z.boolean(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
 
-  @ApiProperty()
-  code!: string;
-
-  @ApiProperty({ enum: CouponType })
-  type!: CouponType;
-
-  @ApiProperty()
-  value!: number;
-
-  @ApiProperty()
-  minPurchase!: number;
-
-  @ApiPropertyOptional({ nullable: true })
-  usageLimit!: number | null;
-
-  @ApiProperty()
-  usageCount!: number;
-
-  @ApiPropertyOptional({ nullable: true })
-  expiresAt!: Date | null;
-
-  @ApiProperty()
-  isActive!: boolean;
-
-  @ApiProperty()
-  createdAt!: Date;
-
-  @ApiProperty()
-  updatedAt!: Date;
-}
+export class CouponResponseDto extends createZodDto(couponResponseSchema) {}

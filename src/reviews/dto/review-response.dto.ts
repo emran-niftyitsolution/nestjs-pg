@@ -1,40 +1,29 @@
 // src/reviews/dto/review-response.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class ReviewResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+export const reviewResponseSchema = z.object({
+  id: z.uuid(),
+  productId: z.uuid(),
+  userId: z.uuid(),
+  reviewerName: z.string().describe("The reviewer's first name"),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
 
-  @ApiProperty({ format: 'uuid' })
-  productId!: string;
+export class ReviewResponseDto extends createZodDto(reviewResponseSchema) {}
 
-  @ApiProperty({ format: 'uuid' })
-  userId!: string;
+export const reviewSummaryResponseSchema = z.object({
+  reviewCount: z.number(),
+  averageRating: z
+    .number()
+    .nullable()
+    .describe('null when there are no reviews yet'),
+});
 
-  @ApiProperty({ description: "The reviewer's first name" })
-  reviewerName!: string;
-
-  @ApiProperty({ minimum: 1, maximum: 5 })
-  rating!: number;
-
-  @ApiPropertyOptional({ nullable: true })
-  comment!: string | null;
-
-  @ApiProperty()
-  createdAt!: Date;
-
-  @ApiProperty()
-  updatedAt!: Date;
-}
-
-export class ReviewSummaryResponseDto {
-  @ApiProperty()
-  reviewCount!: number;
-
-  @ApiProperty({
-    nullable: true,
-    description: 'null when there are no reviews yet',
-  })
-  averageRating!: number | null;
-}
+export class ReviewSummaryResponseDto extends createZodDto(
+  reviewSummaryResponseSchema,
+) {}

@@ -159,8 +159,8 @@ export class CartService {
       subtotal:
         Math.round(items.reduce((sum, item) => sum + item.lineTotal, 0) * 100) /
         100,
-      createdAt: cart.createdAt,
-      updatedAt: cart.updatedAt,
+      createdAt: cart.createdAt.toISOString(),
+      updatedAt: cart.updatedAt.toISOString(),
     };
   }
 }

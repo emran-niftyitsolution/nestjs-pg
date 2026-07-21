@@ -287,6 +287,8 @@ export class CategoriesService {
     const attach = (parentId: string | null): CategoryTreeNodeDto[] =>
       (childrenByParent.get(parentId) ?? []).map((row) => ({
         ...row,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
         children: attach(row.id),
       }));
 

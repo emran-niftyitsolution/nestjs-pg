@@ -1,23 +1,17 @@
 // src/product-images/dto/product-image-response.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class ProductImageResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+export const productImageResponseSchema = z.object({
+  id: z.uuid(),
+  productId: z.uuid(),
+  url: z.string(),
+  altText: z.string().nullable(),
+  sortOrder: z.number(),
+  createdAt: z.iso.datetime(),
+});
 
-  @ApiProperty({ format: 'uuid' })
-  productId!: string;
-
-  @ApiProperty()
-  url!: string;
-
-  @ApiPropertyOptional({ nullable: true })
-  altText!: string | null;
-
-  @ApiProperty()
-  sortOrder!: number;
-
-  @ApiProperty()
-  createdAt!: Date;
-}
+export class ProductImageResponseDto extends createZodDto(
+  productImageResponseSchema,
+) {}

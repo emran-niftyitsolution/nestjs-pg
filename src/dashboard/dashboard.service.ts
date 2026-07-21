@@ -134,7 +134,7 @@ export class DashboardService {
     }>;
 
     return rows.map((row) => ({
-      month: row.month,
+      month: row.month.toISOString(),
       orderCount: row.order_count,
       revenue: Number(row.revenue),
     }));

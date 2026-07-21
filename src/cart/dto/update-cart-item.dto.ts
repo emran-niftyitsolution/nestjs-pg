@@ -1,14 +1,14 @@
 // src/cart/dto/update-cart-item.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, Min } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class UpdateCartItemDto {
-  @ApiProperty({
-    minimum: 1,
-    description: 'Sets the exact quantity (not a delta)',
-  })
-  @IsInt()
-  @Min(1)
-  quantity!: number;
-}
+export const updateCartItemSchema = z.object({
+  quantity: z
+    .number()
+    .int()
+    .min(1)
+    .describe('Sets the exact quantity (not a delta)'),
+});
+
+export class UpdateCartItemDto extends createZodDto(updateCartItemSchema) {}

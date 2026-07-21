@@ -1,19 +1,14 @@
 // src/coupons/dto/validate-coupon.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsString, Min, MinLength } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class ValidateCouponDto {
-  @ApiProperty()
-  @IsString()
-  @MinLength(1)
-  code!: string;
+export const validateCouponSchema = z.object({
+  code: z.string().min(1),
+  purchaseAmount: z
+    .number()
+    .min(0)
+    .describe("The order's subtotal before discount"),
+});
 
-  @ApiProperty({
-    minimum: 0,
-    description: "The order's subtotal before discount",
-  })
-  @IsNumber()
-  @Min(0)
-  purchaseAmount!: number;
-}
+export class ValidateCouponDto extends createZodDto(validateCouponSchema) {}

@@ -1,30 +1,18 @@
 // src/notifications/dto/notification-response.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class NotificationResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+export const notificationResponseSchema = z.object({
+  id: z.uuid(),
+  type: z.string().describe("e.g. 'order_shipped', 'password_changed'"),
+  title: z.string(),
+  message: z.string(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
+  readAt: z.iso.datetime().nullable().describe('null while unread'),
+  createdAt: z.iso.datetime(),
+});
 
-  @ApiProperty({ description: "e.g. 'order_shipped', 'password_changed'" })
-  type!: string;
-
-  @ApiProperty()
-  title!: string;
-
-  @ApiProperty()
-  message!: string;
-
-  @ApiPropertyOptional({
-    type: 'object',
-    additionalProperties: true,
-    nullable: true,
-  })
-  metadata!: Record<string, unknown> | null;
-
-  @ApiPropertyOptional({ nullable: true, description: 'null while unread' })
-  readAt!: Date | null;
-
-  @ApiProperty()
-  createdAt!: Date;
-}
+export class NotificationResponseDto extends createZodDto(
+  notificationResponseSchema,
+) {}

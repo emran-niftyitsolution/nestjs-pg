@@ -1,38 +1,20 @@
 // src/payments/dto/payment-response.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 import { PaymentProvider } from '@/common/enums/payment-provider.enum';
 import { PaymentStatus } from '@/common/enums/payment-status.enum';
 
-export class PaymentResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+export const paymentResponseSchema = z.object({
+  id: z.uuid(),
+  orderId: z.uuid(),
+  provider: z.enum(PaymentProvider),
+  status: z.enum(PaymentStatus),
+  amount: z.number(),
+  transactionReference: z.string().nullable(),
+  gatewayResponse: z.record(z.string(), z.unknown()).nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
 
-  @ApiProperty({ format: 'uuid' })
-  orderId!: string;
-
-  @ApiProperty({ enum: PaymentProvider })
-  provider!: PaymentProvider;
-
-  @ApiProperty({ enum: PaymentStatus })
-  status!: PaymentStatus;
-
-  @ApiProperty()
-  amount!: number;
-
-  @ApiPropertyOptional({ nullable: true })
-  transactionReference!: string | null;
-
-  @ApiPropertyOptional({
-    type: 'object',
-    additionalProperties: true,
-    nullable: true,
-  })
-  gatewayResponse!: Record<string, unknown> | null;
-
-  @ApiProperty()
-  createdAt!: Date;
-
-  @ApiProperty()
-  updatedAt!: Date;
-}
+export class PaymentResponseDto extends createZodDto(paymentResponseSchema) {}

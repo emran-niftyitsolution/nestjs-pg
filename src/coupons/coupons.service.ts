@@ -181,7 +181,15 @@ export class CouponsService {
     }
 
     const discountAmount = this.computeDiscount(coupon, purchaseAmount);
-    return { coupon, discountAmount };
+    return {
+      coupon: {
+        ...coupon,
+        expiresAt: coupon.expiresAt?.toISOString() ?? null,
+        createdAt: coupon.createdAt.toISOString(),
+        updatedAt: coupon.updatedAt.toISOString(),
+      },
+      discountAmount,
+    };
   }
 
   /**

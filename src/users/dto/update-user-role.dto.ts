@@ -1,11 +1,11 @@
 // src/users/dto/update-user-role.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 import { Role } from '@/common/enums/role.enum';
 
-export class UpdateUserRoleDto {
-  @ApiProperty({ enum: Role })
-  @IsEnum(Role)
-  role!: Role;
-}
+export const updateUserRoleSchema = z.object({
+  role: z.enum(Role),
+});
+
+export class UpdateUserRoleDto extends createZodDto(updateUserRoleSchema) {}

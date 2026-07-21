@@ -1,17 +1,11 @@
 // src/auth/dto/reset-password.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class ResetPasswordDto {
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  token!: string;
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  newPassword: z.string().min(8).max(128),
+});
 
-  @ApiProperty({ minLength: 8, maxLength: 128, format: 'password' })
-  @IsString()
-  @MinLength(8)
-  @MaxLength(128)
-  newPassword!: string;
-}
+export class ResetPasswordDto extends createZodDto(resetPasswordSchema) {}

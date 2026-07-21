@@ -1,34 +1,24 @@
 // src/dashboard/dto/dashboard-query.dto.ts
 
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class TopEntitiesQueryDto {
-  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 10 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit: number = 10;
-}
+export const topEntitiesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+});
 
-export class MonthlySalesQueryDto {
-  @ApiPropertyOptional({ minimum: 1, maximum: 60, default: 12 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(60)
-  months: number = 12;
-}
+export class TopEntitiesQueryDto extends createZodDto(topEntitiesQuerySchema) {}
 
-export class LowStockQueryDto {
-  @ApiPropertyOptional({ minimum: 0, default: 10 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  threshold: number = 10;
-}
+export const monthlySalesQuerySchema = z.object({
+  months: z.coerce.number().int().min(1).max(60).default(12),
+});
+
+export class MonthlySalesQueryDto extends createZodDto(
+  monthlySalesQuerySchema,
+) {}
+
+export const lowStockQuerySchema = z.object({
+  threshold: z.coerce.number().int().min(0).default(10),
+});
+
+export class LowStockQueryDto extends createZodDto(lowStockQuerySchema) {}

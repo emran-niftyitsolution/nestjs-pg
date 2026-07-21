@@ -1,50 +1,20 @@
 // src/addresses/dto/create-address.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsBoolean,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CreateAddressDto {
-  @ApiProperty({ maxLength: 255 })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(255)
-  street!: string;
-
-  @ApiProperty({ maxLength: 100 })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100)
-  city!: string;
-
-  @ApiProperty({ maxLength: 100 })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100)
-  state!: string;
-
-  @ApiProperty({ maxLength: 20 })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(20)
-  postalCode!: string;
-
-  @ApiProperty({ maxLength: 100 })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(100)
-  country!: string;
-
-  @ApiPropertyOptional({
-    description:
+export const createAddressSchema = z.object({
+  street: z.string().min(1).max(255),
+  city: z.string().min(1).max(100),
+  state: z.string().min(1).max(100),
+  postalCode: z.string().min(1).max(20),
+  country: z.string().min(1).max(100),
+  isDefault: z
+    .boolean()
+    .optional()
+    .describe(
       'Make this the default address. Automatically true if this is your first address.',
-  })
-  @IsOptional()
-  @IsBoolean()
-  isDefault?: boolean;
-}
+    ),
+});
+
+export class CreateAddressDto extends createZodDto(createAddressSchema) {}

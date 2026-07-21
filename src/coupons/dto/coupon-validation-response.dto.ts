@@ -1,12 +1,14 @@
 // src/coupons/dto/coupon-validation-response.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { CouponResponseDto } from './coupon-response.dto';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
+import { couponResponseSchema } from './coupon-response.dto';
 
-export class CouponValidationResponseDto {
-  @ApiProperty({ type: CouponResponseDto })
-  coupon!: CouponResponseDto;
+export const couponValidationResponseSchema = z.object({
+  coupon: couponResponseSchema,
+  discountAmount: z.number().describe('Amount to subtract from purchaseAmount'),
+});
 
-  @ApiProperty({ description: 'Amount to subtract from purchaseAmount' })
-  discountAmount!: number;
-}
+export class CouponValidationResponseDto extends createZodDto(
+  couponValidationResponseSchema,
+) {}

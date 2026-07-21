@@ -1,21 +1,14 @@
 // src/products/dto/product-dimensions.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, Min } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class ProductDimensionsDto {
-  @ApiProperty({ description: 'Length in centimeters' })
-  @IsNumber()
-  @Min(0)
-  length!: number;
+export const productDimensionsSchema = z.object({
+  length: z.number().min(0).describe('Length in centimeters'),
+  width: z.number().min(0).describe('Width in centimeters'),
+  height: z.number().min(0).describe('Height in centimeters'),
+});
 
-  @ApiProperty({ description: 'Width in centimeters' })
-  @IsNumber()
-  @Min(0)
-  width!: number;
-
-  @ApiProperty({ description: 'Height in centimeters' })
-  @IsNumber()
-  @Min(0)
-  height!: number;
-}
+export class ProductDimensionsDto extends createZodDto(
+  productDimensionsSchema,
+) {}

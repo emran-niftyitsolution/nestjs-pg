@@ -1,17 +1,11 @@
 // src/auth/dto/change-password.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class ChangePasswordDto {
-  @ApiProperty({ format: 'password' })
-  @IsString()
-  @IsNotEmpty()
-  currentPassword!: string;
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8).max(128),
+});
 
-  @ApiProperty({ minLength: 8, maxLength: 128, format: 'password' })
-  @IsString()
-  @MinLength(8)
-  @MaxLength(128)
-  newPassword!: string;
-}
+export class ChangePasswordDto extends createZodDto(changePasswordSchema) {}

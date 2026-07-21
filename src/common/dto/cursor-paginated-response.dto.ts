@@ -1,35 +1,45 @@
 // src/common/dto/cursor-paginated-response.dto.ts
 
-import type { Type } from '@nestjs/common';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { createZodDto, type ZodDto } from 'nestjs-zod';
+import { isZodDto } from 'nestjs-zod/dto';
+import { z } from 'zod';
 
-export class CursorPaginationMetaDto {
-  @ApiProperty()
-  limit!: number;
+export const cursorPaginationMetaSchema = z.object({
+  limit: z.number(),
+  hasNextPage: z.boolean(),
+  nextCursor: z.string().nullable(),
+});
 
-  @ApiProperty()
-  hasNextPage!: boolean;
-
-  @ApiPropertyOptional({ nullable: true })
-  nextCursor!: string | null;
-}
+export class CursorPaginationMetaDto extends createZodDto(
+  cursorPaginationMetaSchema,
+) {}
 
 /**
- * A class mixin instead of a plain generic type: Swagger reads decorator
- * metadata off an actual class, so each paginated response needs its own
- * runtime class with `data` typed to the right item DTO.
+ * A class mixin instead of a plain generic type: Swagger/nestjs-zod reads
+ * OpenAPI metadata off an actual class, so each paginated response needs its
+ * own runtime DTO with `data` typed to the right item schema.
  */
-export function CursorPaginatedResponseDto<T>(ItemDto: Type<T>): Type<{
-  data: T[];
-  meta: CursorPaginationMetaDto;
-}> {
-  class CursorPaginatedResponseClass {
-    @ApiProperty({ type: [ItemDto] })
-    data!: T[];
+export function CursorPaginatedResponseDto(
+  itemSchemaOrDto: z.ZodType | ZodDto,
+): ZodDto {
+  const itemSchema = (
+    isZodDto(itemSchemaOrDto) ? itemSchemaOrDto.schema : itemSchemaOrDto
+  ) as z.ZodType;
 
-    @ApiProperty({ type: CursorPaginationMetaDto })
-    meta!: CursorPaginationMetaDto;
-  }
+  const dtoClass = class CursorPaginatedResponseClass extends createZodDto(
+    z.object({
+      data: z.array(itemSchema),
+      meta: cursorPaginationMetaSchema,
+    }),
+  ) {};
 
-  return CursorPaginatedResponseClass;
+  // Swagger/nestjs-zod registers OpenAPI schemas by class name — without a
+  // per-item name here, every call site would collide under the same
+  // "CursorPaginatedResponseClass" name in the generated doc.
+  const itemName = isZodDto(itemSchemaOrDto) ? itemSchemaOrDto.name : 'Item';
+  Object.defineProperty(dtoClass, 'name', {
+    value: `${itemName}CursorPage`,
+  });
+
+  return dtoClass;
 }

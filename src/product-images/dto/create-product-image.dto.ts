@@ -1,31 +1,14 @@
 // src/product-images/dto/create-product-image.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsInt,
-  IsOptional,
-  IsString,
-  IsUrl,
-  Max,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CreateProductImageDto {
-  @ApiProperty()
-  @IsUrl()
-  url!: string;
+export const createProductImageSchema = z.object({
+  url: z.url(),
+  altText: z.string().max(255).optional(),
+  sortOrder: z.number().int().min(0).max(1000).optional(),
+});
 
-  @ApiPropertyOptional({ maxLength: 255 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  altText?: string;
-
-  @ApiPropertyOptional({ minimum: 0, maximum: 1000, default: 0 })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(1000)
-  sortOrder?: number;
-}
+export class CreateProductImageDto extends createZodDto(
+  createProductImageSchema,
+) {}

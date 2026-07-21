@@ -1,16 +1,11 @@
 // src/auth/dto/login.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class LoginDto {
-  @ApiProperty({ maxLength: 255, format: 'email' })
-  @IsEmail()
-  @MaxLength(255)
-  email!: string;
+export const loginSchema = z.object({
+  email: z.email().max(255),
+  password: z.string().min(1),
+});
 
-  @ApiProperty({ format: 'password' })
-  @IsString()
-  @IsNotEmpty()
-  password!: string;
-}
+export class LoginDto extends createZodDto(loginSchema) {}

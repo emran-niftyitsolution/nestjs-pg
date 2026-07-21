@@ -1,20 +1,16 @@
 // src/inventory/dto/inventory-response.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class InventoryResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  productId!: string;
+export const inventoryResponseSchema = z.object({
+  productId: z.uuid(),
+  stock: z.number().describe('products.stock — the on-hand total'),
+  reservedStock: z.number(),
+  soldStock: z.number(),
+  availableStock: z.number().describe('stock - reservedStock'),
+});
 
-  @ApiProperty({ description: 'products.stock — the on-hand total' })
-  stock!: number;
-
-  @ApiProperty()
-  reservedStock!: number;
-
-  @ApiProperty()
-  soldStock!: number;
-
-  @ApiProperty({ description: 'stock - reservedStock' })
-  availableStock!: number;
-}
+export class InventoryResponseDto extends createZodDto(
+  inventoryResponseSchema,
+) {}

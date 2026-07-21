@@ -29,7 +29,13 @@ export class WishlistService {
       .from(wishlistItems)
       .innerJoin(products, eq(wishlistItems.productId, products.id))
       .where(eq(wishlistItems.userId, userId))
-      .orderBy(desc(wishlistItems.createdAt));
+      .orderBy(desc(wishlistItems.createdAt))
+      .then((rows) =>
+        rows.map((row) => ({
+          ...row,
+          createdAt: row.createdAt.toISOString(),
+        })),
+      );
   }
 
   async add(userId: string, productId: string): Promise<void> {

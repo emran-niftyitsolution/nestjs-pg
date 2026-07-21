@@ -1,8 +1,10 @@
 // src/common/dto/message-response.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class MessageResponseDto {
-  @ApiProperty()
-  message!: string;
-}
+export const messageResponseSchema = z.object({
+  message: z.string(),
+});
+
+export class MessageResponseDto extends createZodDto(messageResponseSchema) {}

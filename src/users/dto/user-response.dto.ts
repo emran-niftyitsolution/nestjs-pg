@@ -1,39 +1,22 @@
 // src/users/dto/user-response.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 import { Role } from '@/common/enums/role.enum';
 
-export class UserResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+// Mirrors UsersService's SafeUser — password never enters the response shape.
+export const userResponseSchema = z.object({
+  id: z.uuid(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string(),
+  phone: z.string().nullable(),
+  avatar: z.string().nullable(),
+  role: z.enum(Role),
+  isActive: z.boolean(),
+  emailVerified: z.boolean(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
 
-  @ApiProperty()
-  firstName!: string;
-
-  @ApiProperty()
-  lastName!: string;
-
-  @ApiProperty({ format: 'email' })
-  email!: string;
-
-  @ApiPropertyOptional({ nullable: true })
-  phone!: string | null;
-
-  @ApiPropertyOptional({ nullable: true })
-  avatar!: string | null;
-
-  @ApiProperty({ enum: Role })
-  role!: Role;
-
-  @ApiProperty()
-  isActive!: boolean;
-
-  @ApiProperty()
-  emailVerified!: boolean;
-
-  @ApiProperty()
-  createdAt!: Date;
-
-  @ApiProperty()
-  updatedAt!: Date;
-}
+export class UserResponseDto extends createZodDto(userResponseSchema) {}

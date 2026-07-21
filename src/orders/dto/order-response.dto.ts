@@ -1,79 +1,47 @@
 // src/orders/dto/order-response.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 import { OrderStatus } from '@/common/enums/order-status.enum';
 
-export class ShippingAddressSnapshotDto {
-  @ApiProperty()
-  street!: string;
+export const shippingAddressSnapshotSchema = z.object({
+  street: z.string(),
+  city: z.string(),
+  state: z.string(),
+  postalCode: z.string(),
+  country: z.string(),
+});
 
-  @ApiProperty()
-  city!: string;
+export class ShippingAddressSnapshotDto extends createZodDto(
+  shippingAddressSnapshotSchema,
+) {}
 
-  @ApiProperty()
-  state!: string;
+export const orderItemResponseSchema = z.object({
+  id: z.uuid(),
+  productId: z.uuid(),
+  productName: z.string(),
+  productSku: z.string(),
+  unitPrice: z.number(),
+  quantity: z.number(),
+  taxAmount: z.number(),
+  lineTotal: z.number(),
+});
 
-  @ApiProperty()
-  postalCode!: string;
+export class OrderItemResponseDto extends createZodDto(
+  orderItemResponseSchema,
+) {}
 
-  @ApiProperty()
-  country!: string;
-}
+export const orderResponseSchema = z.object({
+  id: z.uuid(),
+  status: z.enum(OrderStatus),
+  subtotal: z.number(),
+  discountAmount: z.number(),
+  couponCode: z.string().nullable(),
+  shippingAddress: shippingAddressSnapshotSchema,
+  total: z.number(),
+  items: z.array(orderItemResponseSchema),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
 
-export class OrderItemResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
-
-  @ApiProperty({ format: 'uuid' })
-  productId!: string;
-
-  @ApiProperty()
-  productName!: string;
-
-  @ApiProperty()
-  productSku!: string;
-
-  @ApiProperty()
-  unitPrice!: number;
-
-  @ApiProperty()
-  quantity!: number;
-
-  @ApiProperty()
-  taxAmount!: number;
-
-  @ApiProperty()
-  lineTotal!: number;
-}
-
-export class OrderResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
-
-  @ApiProperty({ enum: OrderStatus })
-  status!: OrderStatus;
-
-  @ApiProperty()
-  subtotal!: number;
-
-  @ApiProperty()
-  discountAmount!: number;
-
-  @ApiPropertyOptional({ nullable: true })
-  couponCode!: string | null;
-
-  @ApiProperty({ type: ShippingAddressSnapshotDto })
-  shippingAddress!: ShippingAddressSnapshotDto;
-
-  @ApiProperty()
-  total!: number;
-
-  @ApiProperty({ type: [OrderItemResponseDto] })
-  items!: OrderItemResponseDto[];
-
-  @ApiProperty()
-  createdAt!: Date;
-
-  @ApiProperty()
-  updatedAt!: Date;
-}
+export class OrderResponseDto extends createZodDto(orderResponseSchema) {}

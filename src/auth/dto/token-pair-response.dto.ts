@@ -1,11 +1,13 @@
 // src/auth/dto/token-pair-response.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class TokenPairResponseDto {
-  @ApiProperty()
-  accessToken!: string;
+export const tokenPairResponseSchema = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string(),
+});
 
-  @ApiProperty()
-  refreshToken!: string;
-}
+export class TokenPairResponseDto extends createZodDto(
+  tokenPairResponseSchema,
+) {}

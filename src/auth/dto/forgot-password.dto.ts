@@ -1,11 +1,10 @@
 // src/auth/dto/forgot-password.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, MaxLength } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class ForgotPasswordDto {
-  @ApiProperty({ maxLength: 255, format: 'email' })
-  @IsEmail()
-  @MaxLength(255)
-  email!: string;
-}
+export const forgotPasswordSchema = z.object({
+  email: z.email().max(255),
+});
+
+export class ForgotPasswordDto extends createZodDto(forgotPasswordSchema) {}

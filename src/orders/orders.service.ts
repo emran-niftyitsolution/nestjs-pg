@@ -462,8 +462,8 @@ export class OrdersService {
       shippingAddress: order.shippingAddress,
       total: order.total,
       items,
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt,
+      createdAt: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt.toISOString(),
     };
   }
 }

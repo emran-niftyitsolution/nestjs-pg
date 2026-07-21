@@ -1,25 +1,11 @@
 // src/reviews/dto/create-review.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsInt,
-  IsOptional,
-  IsString,
-  Max,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CreateReviewDto {
-  @ApiProperty({ minimum: 1, maximum: 5 })
-  @IsInt()
-  @Min(1)
-  @Max(5)
-  rating!: number;
+export const createReviewSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().max(2000).optional(),
+});
 
-  @ApiPropertyOptional({ maxLength: 2000 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(2000)
-  comment?: string;
-}
+export class CreateReviewDto extends createZodDto(createReviewSchema) {}

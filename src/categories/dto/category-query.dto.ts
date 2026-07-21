@@ -1,24 +1,18 @@
 // src/categories/dto/category-query.dto.ts
 
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsUUID } from 'class-validator';
-import { ToBoolean } from '@/common/decorators/to-boolean.decorator';
-import { CursorPaginationQueryDto } from '@/common/dto/cursor-pagination-query.dto';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
+import { cursorPaginationQuerySchema } from '@/common/dto/cursor-pagination-query.dto';
+import { booleanQuerySchema } from '@/common/utils/zod-boolean-query.util';
 
-export class CategoryQueryDto extends CursorPaginationQueryDto {
-  @ApiPropertyOptional({
-    format: 'uuid',
-    description: 'Return only direct children of this category',
-  })
-  @IsOptional()
-  @IsUUID()
-  parentId?: string;
+export const categoryQuerySchema = cursorPaginationQuerySchema.extend({
+  parentId: z
+    .uuid()
+    .optional()
+    .describe('Return only direct children of this category'),
+  topLevelOnly: booleanQuerySchema()
+    .optional()
+    .describe('Return only top-level (root) categories'),
+});
 
-  @ApiPropertyOptional({
-    description: 'Return only top-level (root) categories',
-  })
-  @IsOptional()
-  @ToBoolean()
-  @IsBoolean()
-  topLevelOnly?: boolean;
-}
+export class CategoryQueryDto extends createZodDto(categoryQuerySchema) {}

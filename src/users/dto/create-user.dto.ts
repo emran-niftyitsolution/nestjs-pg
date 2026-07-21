@@ -1,48 +1,15 @@
 // src/users/dto/create-user.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsEmail,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsUrl,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CreateUserDto {
-  @ApiProperty({ maxLength: 100 })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
-  firstName!: string;
+export const createUserSchema = z.object({
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  email: z.email().max(255),
+  password: z.string().min(8).max(128),
+  phone: z.string().max(20).optional(),
+  avatar: z.url().optional(),
+});
 
-  @ApiProperty({ maxLength: 100 })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
-  lastName!: string;
-
-  @ApiProperty({ maxLength: 255, format: 'email' })
-  @IsEmail()
-  @MaxLength(255)
-  email!: string;
-
-  @ApiProperty({ minLength: 8, maxLength: 128, format: 'password' })
-  @IsString()
-  @MinLength(8)
-  @MaxLength(128)
-  password!: string;
-
-  @ApiPropertyOptional({ maxLength: 20 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  phone?: string;
-
-  @ApiPropertyOptional({ format: 'uri' })
-  @IsOptional()
-  @IsUrl()
-  avatar?: string;
-}
+export class CreateUserDto extends createZodDto(createUserSchema) {}

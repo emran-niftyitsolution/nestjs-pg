@@ -1,14 +1,15 @@
 // src/notifications/dto/notification-query.dto.ts
 
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsOptional } from 'class-validator';
-import { ToBoolean } from '@/common/decorators/to-boolean.decorator';
-import { CursorPaginationQueryDto } from '@/common/dto/cursor-pagination-query.dto';
+import { createZodDto } from 'nestjs-zod';
+import { cursorPaginationQuerySchema } from '@/common/dto/cursor-pagination-query.dto';
+import { booleanQuerySchema } from '@/common/utils/zod-boolean-query.util';
 
-export class NotificationQueryDto extends CursorPaginationQueryDto {
-  @ApiPropertyOptional({ description: 'Only unread notifications' })
-  @IsOptional()
-  @ToBoolean()
-  @IsBoolean()
-  unreadOnly?: boolean;
-}
+export const notificationQuerySchema = cursorPaginationQuerySchema.extend({
+  unreadOnly: booleanQuerySchema()
+    .optional()
+    .describe('Only unread notifications'),
+});
+
+export class NotificationQueryDto extends createZodDto(
+  notificationQuerySchema,
+) {}

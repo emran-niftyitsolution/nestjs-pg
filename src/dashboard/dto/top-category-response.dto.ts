@@ -1,20 +1,16 @@
 // src/dashboard/dto/top-category-response.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class TopCategoryResponseDto {
-  @ApiProperty({ description: 'Rank by revenue, 1 = highest' })
-  rank!: number;
+export const topCategoryResponseSchema = z.object({
+  rank: z.number().describe('Rank by revenue, 1 = highest'),
+  categoryId: z.uuid(),
+  name: z.string(),
+  unitsSold: z.number(),
+  revenue: z.number(),
+});
 
-  @ApiProperty({ format: 'uuid' })
-  categoryId!: string;
-
-  @ApiProperty()
-  name!: string;
-
-  @ApiProperty()
-  unitsSold!: number;
-
-  @ApiProperty()
-  revenue!: number;
-}
+export class TopCategoryResponseDto extends createZodDto(
+  topCategoryResponseSchema,
+) {}

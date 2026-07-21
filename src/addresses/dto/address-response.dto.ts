@@ -1,32 +1,18 @@
 // src/addresses/dto/address-response.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class AddressResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+export const addressResponseSchema = z.object({
+  id: z.uuid(),
+  street: z.string(),
+  city: z.string(),
+  state: z.string(),
+  postalCode: z.string(),
+  country: z.string(),
+  isDefault: z.boolean(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
 
-  @ApiProperty()
-  street!: string;
-
-  @ApiProperty()
-  city!: string;
-
-  @ApiProperty()
-  state!: string;
-
-  @ApiProperty()
-  postalCode!: string;
-
-  @ApiProperty()
-  country!: string;
-
-  @ApiProperty()
-  isDefault!: boolean;
-
-  @ApiProperty()
-  createdAt!: Date;
-
-  @ApiProperty()
-  updatedAt!: Date;
-}
+export class AddressResponseDto extends createZodDto(addressResponseSchema) {}

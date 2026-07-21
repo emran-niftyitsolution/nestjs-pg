@@ -168,7 +168,15 @@ export class AuthService {
       user.id,
     );
 
-    return { accessToken, refreshToken, user };
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        ...user,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+      },
+    };
   }
 
   private signAccessToken(user: SafeUser): string {

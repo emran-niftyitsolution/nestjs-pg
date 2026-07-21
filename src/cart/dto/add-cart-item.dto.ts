@@ -1,15 +1,11 @@
 // src/cart/dto/add-cart-item.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsUUID, Min } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class AddCartItemDto {
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  productId!: string;
+export const addCartItemSchema = z.object({
+  productId: z.uuid(),
+  quantity: z.number().int().min(1),
+});
 
-  @ApiProperty({ minimum: 1, default: 1 })
-  @IsInt()
-  @Min(1)
-  quantity!: number;
-}
+export class AddCartItemDto extends createZodDto(addCartItemSchema) {}

@@ -1,18 +1,11 @@
 // src/orders/dto/checkout.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CheckoutDto {
-  @ApiProperty({
-    format: 'uuid',
-    description: 'One of your own addresses to ship to',
-  })
-  @IsUUID()
-  addressId!: string;
+export const checkoutSchema = z.object({
+  addressId: z.uuid().describe('One of your own addresses to ship to'),
+  couponCode: z.string().optional(),
+});
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  couponCode?: string;
-}
+export class CheckoutDto extends createZodDto(checkoutSchema) {}

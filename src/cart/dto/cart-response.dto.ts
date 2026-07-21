@@ -1,51 +1,32 @@
 // src/cart/dto/cart-response.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CartItemResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+export const cartItemResponseSchema = z.object({
+  id: z.uuid(),
+  productId: z.uuid(),
+  productName: z.string(),
+  productSlug: z.string(),
+  quantity: z.number(),
+  priceSnapshot: z
+    .number()
+    .describe('Price when this line was last added to/updated'),
+  currentPrice: z
+    .number()
+    .describe("The product's current price, for comparison"),
+  lineTotal: z.number().describe('quantity * priceSnapshot'),
+});
 
-  @ApiProperty({ format: 'uuid' })
-  productId!: string;
+export class CartItemResponseDto extends createZodDto(cartItemResponseSchema) {}
 
-  @ApiProperty()
-  productName!: string;
+export const cartResponseSchema = z.object({
+  id: z.uuid(),
+  items: z.array(cartItemResponseSchema),
+  itemCount: z.number().describe('Sum of quantity across all lines'),
+  subtotal: z.number().describe('Sum of lineTotal across all lines'),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
 
-  @ApiProperty()
-  productSlug!: string;
-
-  @ApiProperty()
-  quantity!: number;
-
-  @ApiProperty({
-    description: 'Price when this line was last added to/updated',
-  })
-  priceSnapshot!: number;
-
-  @ApiProperty({ description: "The product's current price, for comparison" })
-  currentPrice!: number;
-
-  @ApiProperty({ description: 'quantity * priceSnapshot' })
-  lineTotal!: number;
-}
-
-export class CartResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
-
-  @ApiProperty({ type: [CartItemResponseDto] })
-  items!: CartItemResponseDto[];
-
-  @ApiProperty({ description: 'Sum of quantity across all lines' })
-  itemCount!: number;
-
-  @ApiProperty({ description: 'Sum of lineTotal across all lines' })
-  subtotal!: number;
-
-  @ApiProperty()
-  createdAt!: Date;
-
-  @ApiProperty()
-  updatedAt!: Date;
-}
+export class CartResponseDto extends createZodDto(cartResponseSchema) {}

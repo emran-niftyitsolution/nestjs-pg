@@ -1,12 +1,11 @@
 // src/brands/dto/update-brand.dto.ts
 
-import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsOptional } from 'class-validator';
-import { CreateBrandDto } from './create-brand.dto';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
+import { createBrandSchema } from './create-brand.dto';
 
-export class UpdateBrandDto extends PartialType(CreateBrandDto) {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
-}
+export const updateBrandSchema = createBrandSchema.partial().extend({
+  isActive: z.boolean().optional(),
+});
+
+export class UpdateBrandDto extends createZodDto(updateBrandSchema) {}

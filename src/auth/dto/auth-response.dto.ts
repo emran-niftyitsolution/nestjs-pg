@@ -1,15 +1,13 @@
 // src/auth/dto/auth-response.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 import { UserResponseDto } from '@/users/dto/user-response.dto';
 
-export class AuthResponseDto {
-  @ApiProperty()
-  accessToken!: string;
+export const authResponseSchema = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string(),
+  user: UserResponseDto.schema,
+});
 
-  @ApiProperty()
-  refreshToken!: string;
-
-  @ApiProperty({ type: UserResponseDto })
-  user!: UserResponseDto;
-}
+export class AuthResponseDto extends createZodDto(authResponseSchema) {}

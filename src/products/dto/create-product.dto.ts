@@ -1,106 +1,36 @@
 // src/products/dto/create-product.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import {
-  IsEnum,
-  IsInt,
-  IsNumber,
-  IsObject,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Matches,
-  Max,
-  MaxLength,
-  Min,
-  MinLength,
-  ValidateNested,
-} from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 import { ProductStatus } from '@/common/enums/product-status.enum';
-import { ProductDimensionsDto } from './product-dimensions.dto';
+import { productDimensionsSchema } from './product-dimensions.dto';
 
-export class CreateProductDto {
-  @ApiProperty({ maxLength: 200 })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(200)
-  name!: string;
-
-  @ApiPropertyOptional({
-    maxLength: 220,
-    description: 'URL-friendly identifier; derived from the name if omitted',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(220)
-  @Matches(/^[a-z0-9]+(-[a-z0-9]+)*$/, {
-    message: 'slug must be lowercase alphanumeric, hyphen-separated',
-  })
-  slug?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @ApiProperty({ maxLength: 64, description: 'Stock keeping unit' })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(64)
-  sku!: string;
-
-  @ApiProperty({ minimum: 0 })
-  @IsNumber()
-  @Min(0)
-  price!: number;
-
-  @ApiPropertyOptional({ minimum: 1, maximum: 100 })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  discountPercentage?: number;
-
-  @ApiPropertyOptional({ minimum: 0, default: 0 })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  stock?: number;
-
-  @ApiPropertyOptional({ minimum: 0, description: 'Weight in kilograms' })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  weightKg?: number;
-
-  @ApiPropertyOptional({ type: ProductDimensionsDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ProductDimensionsDto)
-  dimensionsCm?: ProductDimensionsDto;
-
-  @ApiPropertyOptional({
-    type: 'object',
-    additionalProperties: true,
-    description:
+export const createProductSchema = z.object({
+  name: z.string().min(1).max(200),
+  slug: z
+    .string()
+    .max(220)
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, {
+      message: 'slug must be lowercase alphanumeric, hyphen-separated',
+    })
+    .optional()
+    .describe('URL-friendly identifier; derived from the name if omitted'),
+  description: z.string().optional(),
+  sku: z.string().min(1).max(64).describe('Stock keeping unit'),
+  price: z.number().min(0),
+  discountPercentage: z.number().int().min(1).max(100).optional(),
+  stock: z.number().int().min(0).optional(),
+  weightKg: z.number().min(0).optional().describe('Weight in kilograms'),
+  dimensionsCm: productDimensionsSchema.optional(),
+  specifications: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe(
       'Arbitrary product attributes, e.g. { "ram": "16GB", "color": "black" }',
-  })
-  @IsOptional()
-  @IsObject()
-  specifications?: Record<string, unknown>;
+    ),
+  categoryId: z.uuid(),
+  brandId: z.uuid().optional(),
+  status: z.enum(ProductStatus).optional(),
+});
 
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  categoryId!: string;
-
-  @ApiPropertyOptional({ format: 'uuid' })
-  @IsOptional()
-  @IsUUID()
-  brandId?: string;
-
-  @ApiPropertyOptional({ enum: ProductStatus, default: ProductStatus.Draft })
-  @IsOptional()
-  @IsEnum(ProductStatus)
-  status?: ProductStatus;
-}
+export class CreateProductDto extends createZodDto(createProductSchema) {}

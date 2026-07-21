@@ -1,14 +1,14 @@
 // src/dashboard/dto/monthly-sales-response.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class MonthlySalesResponseDto {
-  @ApiProperty()
-  month!: Date;
+export const monthlySalesResponseSchema = z.object({
+  month: z.iso.datetime(),
+  orderCount: z.number(),
+  revenue: z.number(),
+});
 
-  @ApiProperty()
-  orderCount!: number;
-
-  @ApiProperty()
-  revenue!: number;
-}
+export class MonthlySalesResponseDto extends createZodDto(
+  monthlySalesResponseSchema,
+) {}

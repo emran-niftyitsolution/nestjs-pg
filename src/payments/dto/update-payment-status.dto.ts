@@ -1,11 +1,13 @@
 // src/payments/dto/update-payment-status.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 import { PaymentStatus } from '@/common/enums/payment-status.enum';
 
-export class UpdatePaymentStatusDto {
-  @ApiProperty({ enum: PaymentStatus })
-  @IsEnum(PaymentStatus)
-  status!: PaymentStatus;
-}
+export const updatePaymentStatusSchema = z.object({
+  status: z.enum(PaymentStatus),
+});
+
+export class UpdatePaymentStatusDto extends createZodDto(
+  updatePaymentStatusSchema,
+) {}

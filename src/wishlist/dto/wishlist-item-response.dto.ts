@@ -1,26 +1,18 @@
 // src/wishlist/dto/wishlist-item-response.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class WishlistItemResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+export const wishlistItemResponseSchema = z.object({
+  id: z.uuid(),
+  productId: z.uuid(),
+  productName: z.string(),
+  productSlug: z.string(),
+  price: z.number(),
+  stock: z.number(),
+  createdAt: z.iso.datetime(),
+});
 
-  @ApiProperty({ format: 'uuid' })
-  productId!: string;
-
-  @ApiProperty()
-  productName!: string;
-
-  @ApiProperty()
-  productSlug!: string;
-
-  @ApiProperty()
-  price!: number;
-
-  @ApiProperty()
-  stock!: number;
-
-  @ApiProperty()
-  createdAt!: Date;
-}
+export class WishlistItemResponseDto extends createZodDto(
+  wishlistItemResponseSchema,
+) {}

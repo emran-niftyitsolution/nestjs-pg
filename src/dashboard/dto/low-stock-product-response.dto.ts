@@ -1,20 +1,16 @@
 // src/dashboard/dto/low-stock-product-response.dto.ts
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class LowStockProductResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+export const lowStockProductResponseSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  sku: z.string(),
+  stock: z.number(),
+  categoryId: z.uuid().nullable(),
+});
 
-  @ApiProperty()
-  name!: string;
-
-  @ApiProperty()
-  sku!: string;
-
-  @ApiProperty()
-  stock!: number;
-
-  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
-  categoryId!: string | null;
-}
+export class LowStockProductResponseDto extends createZodDto(
+  lowStockProductResponseSchema,
+) {}

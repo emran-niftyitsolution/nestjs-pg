@@ -1,6 +1,8 @@
 // src/products/dto/update-product.dto.ts
 
-import { PartialType } from '@nestjs/swagger';
-import { CreateProductDto } from './create-product.dto';
+import { createZodDto } from 'nestjs-zod';
+import { createProductSchema } from './create-product.dto';
 
-export class UpdateProductDto extends PartialType(CreateProductDto) {}
+export const updateProductSchema = createProductSchema.partial();
+
+export class UpdateProductDto extends createZodDto(updateProductSchema) {}

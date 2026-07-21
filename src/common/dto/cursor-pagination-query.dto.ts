@@ -1,23 +1,18 @@
 // src/common/dto/cursor-pagination-query.dto.ts
 
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CursorPaginationQueryDto {
-  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 20 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit: number = 20;
-
-  @ApiPropertyOptional({
-    description:
+export const cursorPaginationQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z
+    .string()
+    .optional()
+    .describe(
       "Opaque cursor from the previous response's meta.nextCursor. Omit for the first page.",
-  })
-  @IsOptional()
-  @IsString()
-  cursor?: string;
-}
+    ),
+});
+
+export class CursorPaginationQueryDto extends createZodDto(
+  cursorPaginationQuerySchema,
+) {}

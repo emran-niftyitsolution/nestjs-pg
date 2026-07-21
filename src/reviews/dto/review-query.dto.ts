@@ -1,5 +1,8 @@
 // src/reviews/dto/review-query.dto.ts
 
-import { CursorPaginationQueryDto } from '@/common/dto/cursor-pagination-query.dto';
+import { createZodDto } from 'nestjs-zod';
+import { cursorPaginationQuerySchema } from '@/common/dto/cursor-pagination-query.dto';
 
-export class ReviewQueryDto extends CursorPaginationQueryDto {}
+export const reviewQuerySchema = cursorPaginationQuerySchema;
+
+export class ReviewQueryDto extends createZodDto(reviewQuerySchema) {}

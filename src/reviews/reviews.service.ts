@@ -39,7 +39,7 @@ const VERIFIED_PURCHASE_STATUSES = [
   OrderStatus.Refunded,
 ];
 
-interface ReviewRow {
+export interface ReviewRow {
   id: string;
   productId: string;
   userId: string;
@@ -62,7 +62,7 @@ export class ReviewsService {
     userId: string,
     productId: string,
     dto: CreateReviewDto,
-  ): Promise<ReviewResponseDto> {
+  ): Promise<ReviewRow> {
     const verified = await this.isVerifiedBuyer(userId, productId);
     if (!verified) {
       throw new ForbiddenException(
@@ -132,7 +132,14 @@ export class ReviewsService {
     const nextCursor =
       hasNextPage && last ? encodeCursor(last.createdAt, last.id) : null;
 
-    return { data, meta: { limit, hasNextPage, nextCursor } };
+    return {
+      data: data.map((row) => ({
+        ...row,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+      })),
+      meta: { limit, hasNextPage, nextCursor },
+    };
   }
 
   /** AVG + COUNT aggregation — the PRD's textbook GROUP-free aggregate query. */
@@ -156,7 +163,7 @@ export class ReviewsService {
     userId: string,
     reviewId: string,
     dto: UpdateReviewDto,
-  ): Promise<ReviewResponseDto> {
+  ): Promise<ReviewRow> {
     const [review] = await this.db
       .update(reviews)
       .set(dto)

@@ -1,17 +1,15 @@
 // src/dashboard/dto/dashboard-summary-response.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class DashboardSummaryResponseDto {
-  @ApiProperty()
-  totalRevenue!: number;
+export const dashboardSummaryResponseSchema = z.object({
+  totalRevenue: z.number(),
+  totalOrders: z.number(),
+  totalProducts: z.number(),
+  totalCustomers: z.number(),
+});
 
-  @ApiProperty()
-  totalOrders!: number;
-
-  @ApiProperty()
-  totalProducts!: number;
-
-  @ApiProperty()
-  totalCustomers!: number;
-}
+export class DashboardSummaryResponseDto extends createZodDto(
+  dashboardSummaryResponseSchema,
+) {}

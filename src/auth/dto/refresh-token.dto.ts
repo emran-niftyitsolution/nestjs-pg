@@ -1,11 +1,10 @@
 // src/auth/dto/refresh-token.dto.ts
 
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class RefreshTokenDto {
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  refreshToken!: string;
-}
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(1),
+});
+
+export class RefreshTokenDto extends createZodDto(refreshTokenSchema) {}
