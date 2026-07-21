@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  drizzle-dbml-generator@0.10.0: 1bddd3b31b9581e70c1526344aecd20a3620a48dfd71e23c66573d836a0c572b
+
 importers:
 
   .:
@@ -102,6 +105,9 @@ importers:
       concurrently:
         specifier: ^10.0.3
         version: 10.0.3
+      drizzle-dbml-generator:
+        specifier: ^0.10.0
+        version: 0.10.0(patch_hash=1bddd3b31b9581e70c1526344aecd20a3620a48dfd71e23c66573d836a0c572b)(drizzle-orm@1.0.0-rc.4(@neondatabase/serverless@1.1.0)(@sinclair/typebox@0.34.52)(postgres@3.4.9)(zod@4.4.3))
       drizzle-kit:
         specifier: 1.0.0-rc.4
         version: 1.0.0-rc.4
@@ -2024,6 +2030,11 @@ packages:
   dotenv@17.4.2:
     resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
     engines: {node: '>=12'}
+
+  drizzle-dbml-generator@0.10.0:
+    resolution: {integrity: sha512-cMZq9E3U3RlmE0uBeXyc6oWJ0royOkC6HiTlc9LDeMe+W87poZTzKoNYUyAxZrs4Q1RQtob+cGKiefV4ZoI8HA==}
+    peerDependencies:
+      drizzle-orm: '>=0.36.0'
 
   drizzle-kit@1.0.0-rc.4:
     resolution: {integrity: sha512-KZCpjRyu+oYHLj/UJogfFlOkWhHVkaEI2EOT1U3NDVXUzLoTyPjqwFxwOrlQxsY6jzRyxcz4EacqboGfhEeYrA==}
@@ -5596,6 +5607,10 @@ snapshots:
   dotenv@17.4.1: {}
 
   dotenv@17.4.2: {}
+
+  drizzle-dbml-generator@0.10.0(patch_hash=1bddd3b31b9581e70c1526344aecd20a3620a48dfd71e23c66573d836a0c572b)(drizzle-orm@1.0.0-rc.4(@neondatabase/serverless@1.1.0)(@sinclair/typebox@0.34.52)(postgres@3.4.9)(zod@4.4.3)):
+    dependencies:
+      drizzle-orm: 1.0.0-rc.4(@neondatabase/serverless@1.1.0)(@sinclair/typebox@0.34.52)(postgres@3.4.9)(zod@4.4.3)
 
   drizzle-kit@1.0.0-rc.4:
     dependencies:

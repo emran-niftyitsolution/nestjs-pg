@@ -24,7 +24,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:pull": "drizzle-kit pull",
-    "db:check": "drizzle-kit check"
+    "db:check": "drizzle-kit check",
+    "db:dbml": "tsx src/database/dbml.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -60,6 +61,7 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^7.0.0",
     "concurrently": "^10.0.3",
+    "drizzle-dbml-generator": "^0.10.0",
     "drizzle-kit": "1.0.0-rc.4",
     "jest": "^30.0.0",
     "source-map-support": "^0.5.21",
