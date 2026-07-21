@@ -3,10 +3,11 @@
 import { Module } from '@nestjs/common';
 import { CategoriesController } from './categories.controller';
 import { CategoriesService } from './categories.service';
+import { CategoriesResolver } from './graphql/categories.resolver';
 
 @Module({
   controllers: [CategoriesController],
-  providers: [CategoriesService],
+  providers: [CategoriesService, CategoriesResolver],
   exports: [CategoriesService],
 })
 export class CategoriesModule {}

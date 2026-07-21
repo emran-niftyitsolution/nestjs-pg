@@ -1,4 +1,5 @@
 allowBuilds:
+  '@apollo/protobufjs': true
   '@scarf/scarf': true
   argon2: true
   esbuild: true

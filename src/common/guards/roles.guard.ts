@@ -7,6 +7,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { GqlExecutionContext } from '@nestjs/graphql';
 import type { AuthenticatedUser } from '@/auth/auth.types';
 import { ROLES_KEY } from '@/common/decorators/roles.decorator';
 import type { Role } from '@/common/enums/role.enum';
@@ -33,7 +34,11 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const { user } = context.switchToHttp().getRequest<RequestWithUser>();
+    const request: RequestWithUser =
+      context.getType<'graphql'>() === 'graphql'
+        ? GqlExecutionContext.create(context).getContext().req
+        : context.switchToHttp().getRequest<RequestWithUser>();
+    const { user } = request;
 
     if (!user || !requiredRoles.includes(user.role)) {
       throw new ForbiddenException('Insufficient permissions for this action');

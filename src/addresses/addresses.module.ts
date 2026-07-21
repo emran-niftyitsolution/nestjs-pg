@@ -3,10 +3,11 @@
 import { Module } from '@nestjs/common';
 import { AddressesController } from './addresses.controller';
 import { AddressesService } from './addresses.service';
+import { AddressesResolver } from './graphql/addresses.resolver';
 
 @Module({
   controllers: [AddressesController],
-  providers: [AddressesService],
+  providers: [AddressesService, AddressesResolver],
   exports: [AddressesService],
 })
 export class AddressesModule {}

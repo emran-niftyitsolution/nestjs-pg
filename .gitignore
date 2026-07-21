@@ -4,6 +4,9 @@
 /build
 *.tsbuildinfo
 
+# auto-generated GraphQL SDL (regenerated on every boot from resolver code)
+/src/schema.gql
+
 # Logs
 logs
 *.log

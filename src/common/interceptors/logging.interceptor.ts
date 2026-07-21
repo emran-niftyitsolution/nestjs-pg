@@ -19,6 +19,13 @@ export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
 
   intercept(context: ExecutionContext, next: CallHandler) {
+    // GraphQL resolvers go through this same global interceptor, but there's
+    // no per-field HTTP request/response to log against — only the whole
+    // /graphql POST, which Express's own layer isn't reachable from here.
+    if (context.getType() !== 'http') {
+      return next.handle();
+    }
+
     const request = context.switchToHttp().getRequest<RequestWithUser>();
     const { method, originalUrl } = request;
     const startedAt = process.hrtime.bigint();
