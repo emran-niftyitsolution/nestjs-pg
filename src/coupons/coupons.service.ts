@@ -6,7 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { CouponType } from '@/common/enums/coupon-type.enum';
 import type { CursorPaginatedResult } from '@/common/interfaces/cursor-paginated-result.interface';
 import { decodeCursor, encodeCursor } from '@/common/utils/cursor.util';
@@ -206,9 +206,14 @@ export class CouponsService {
       .update(coupons)
       .set({ usageCount: sql`${coupons.usageCount} + 1` })
       .where(
-        sql`upper(${coupons.code}) = upper(${code})
-          AND ${coupons.isActive} = true
-          AND (${coupons.usageLimit} IS NULL OR ${coupons.usageCount} < ${coupons.usageLimit})`,
+        and(
+          sql`upper(${coupons.code}) = upper(${code})`,
+          eq(coupons.isActive, true),
+          or(
+            isNull(coupons.usageLimit),
+            lt(coupons.usageCount, coupons.usageLimit),
+          ),
+        ),
       )
       .returning();
 

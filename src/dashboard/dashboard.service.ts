@@ -67,7 +67,7 @@ export class DashboardService {
 
   /** Reads from best_selling_products_view; RANK() is applied here rather than baked into the view, since ranking is a presentation concern the view's consumers should get to choose (top 10 vs top 100, etc). */
   async getTopProducts(limit: number): Promise<TopProductResponseDto[]> {
-    const rows = await this.db
+    return this.db
       .select({
         productId: bestSellingProductsView.productId,
         name: bestSellingProductsView.name,
@@ -79,15 +79,6 @@ export class DashboardService {
       .from(bestSellingProductsView)
       .orderBy(desc(bestSellingProductsView.revenue))
       .limit(limit);
-
-    return rows.map((row) => ({
-      rank: row.rank,
-      productId: row.productId,
-      name: row.name,
-      slug: row.slug,
-      unitsSold: row.unitsSold,
-      revenue: Number(row.revenue),
-    }));
   }
 
   /** No dedicated view for this one — it's a one-off aggregation (categories aren't reported on anywhere else), so a CTE built from the query builder is clearer than a schema object only ever queried from here. */
@@ -144,13 +135,13 @@ export class DashboardService {
     return rows.map((row) => ({
       month: row.month.toISOString(),
       orderCount: row.orderCount,
-      revenue: Number(row.revenue),
+      revenue: row.revenue,
     }));
   }
 
   /** The view has no threshold baked in — this is the "WHERE stock <= x" a real table query would also need. */
   async getLowStock(threshold: number): Promise<LowStockProductResponseDto[]> {
-    const rows = await this.db
+    return this.db
       .select({
         id: lowStockProductsView.id,
         name: lowStockProductsView.name,
@@ -160,13 +151,5 @@ export class DashboardService {
       })
       .from(lowStockProductsView)
       .where(lte(lowStockProductsView.stock, threshold));
-
-    return rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      sku: row.sku,
-      stock: row.stock,
-      categoryId: row.categoryId,
-    }));
   }
 }

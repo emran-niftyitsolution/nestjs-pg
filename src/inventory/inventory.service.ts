@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, gte, sql } from 'drizzle-orm';
 import { DatabaseService } from '@/database/database.service';
 import type { DbTransaction } from '@/database/db-transaction.type';
 import { type Inventory, inventory, products } from '@/database/schema';
@@ -74,10 +74,13 @@ export class InventoryService {
       .update(inventory)
       .set({ reservedStock: sql`${inventory.reservedStock} + ${quantity}` })
       .where(
-        sql`${inventory.productId} = ${productId}
-          AND (
-            SELECT stock FROM products WHERE id = ${productId}
-          ) - ${inventory.reservedStock} >= ${quantity}`,
+        and(
+          eq(inventory.productId, productId),
+          gte(
+            sql`(SELECT stock FROM products WHERE id = ${productId}) - ${inventory.reservedStock}`,
+            quantity,
+          ),
+        ),
       )
       .returning();
 
