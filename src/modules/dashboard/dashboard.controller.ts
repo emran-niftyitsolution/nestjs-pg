@@ -1,4 +1,4 @@
-// src/dashboard/dashboard.controller.ts
+// src/modules/dashboard/dashboard.controller.ts
 
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {

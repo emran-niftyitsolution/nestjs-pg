@@ -1,10 +1,10 @@
-// src/product-images/product-images.service.ts
+// src/modules/product-images/product-images.service.ts
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, eq } from 'drizzle-orm';
 import { DatabaseService } from '@/database/database.service';
 import { type ProductImage, productImages } from '@/database/schema';
-import { ProductsService } from '@/products/products.service';
+import { ProductsService } from '@/modules/products/products.service';
 import type { CreateProductImageDto } from './dto/create-product-image.dto';
 import type { UpdateProductImageDto } from './dto/update-product-image.dto';
 

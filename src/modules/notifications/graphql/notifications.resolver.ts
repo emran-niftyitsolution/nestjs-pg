@@ -1,10 +1,10 @@
-// src/notifications/graphql/notifications.resolver.ts
+// src/modules/notifications/graphql/notifications.resolver.ts
 
 import { Args, ID, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
-import type { AuthenticatedUser } from '@/auth/auth.types';
-import { CurrentUser } from '@/auth/current-user.decorator';
 import { CursorPaginatedType } from '@/common/graphql/cursor-paginated.type';
 import { CursorPaginationArgs } from '@/common/graphql/cursor-pagination.args';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
 import { NotificationsService } from '../notifications.service';
 import { NotificationModel } from './notification.model';
 

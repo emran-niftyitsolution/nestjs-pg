@@ -1,4 +1,4 @@
-// src/addresses/addresses.service.ts
+// src/modules/addresses/addresses.service.ts
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { and, count, desc, eq } from 'drizzle-orm';

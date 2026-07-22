@@ -1,4 +1,4 @@
-// src/brands/brands.module.ts
+// src/modules/brands/brands.module.ts
 
 import { Module } from '@nestjs/common';
 import { BrandsController } from './brands.controller';

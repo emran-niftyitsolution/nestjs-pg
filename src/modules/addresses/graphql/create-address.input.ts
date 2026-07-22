@@ -1,4 +1,4 @@
-// src/addresses/graphql/create-address.input.ts
+// src/modules/addresses/graphql/create-address.input.ts
 
 import { Field, InputType } from '@nestjs/graphql';
 

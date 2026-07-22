@@ -1,4 +1,4 @@
-// src/products/products.controller.ts
+// src/modules/products/products.controller.ts
 
 import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import {

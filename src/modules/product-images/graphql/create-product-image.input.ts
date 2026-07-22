@@ -1,4 +1,4 @@
-// src/product-images/graphql/create-product-image.input.ts
+// src/modules/product-images/graphql/create-product-image.input.ts
 
 import { Field, InputType, Int } from '@nestjs/graphql';
 

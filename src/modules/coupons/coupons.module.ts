@@ -1,4 +1,4 @@
-// src/coupons/coupons.module.ts
+// src/modules/coupons/coupons.module.ts
 
 import { Module } from '@nestjs/common';
 import { AdminCouponsController } from './admin-coupons.controller';

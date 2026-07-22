@@ -1,4 +1,4 @@
-// src/payments/graphql/payment-query.args.ts
+// src/modules/payments/graphql/payment-query.args.ts
 
 import { ArgsType, Field } from '@nestjs/graphql';
 import { PaymentStatus } from '@/common/enums/payment-status.enum';

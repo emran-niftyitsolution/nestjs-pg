@@ -1,4 +1,4 @@
-// src/coupons/dto/coupon-query.dto.ts
+// src/modules/coupons/dto/coupon-query.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { cursorPaginationQuerySchema } from '@/common/dto/cursor-pagination-query.dto';

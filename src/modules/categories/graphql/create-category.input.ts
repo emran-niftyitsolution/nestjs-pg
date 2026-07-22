@@ -1,4 +1,4 @@
-// src/categories/graphql/create-category.input.ts
+// src/modules/categories/graphql/create-category.input.ts
 
 import { Field, ID, InputType, Int } from '@nestjs/graphql';
 

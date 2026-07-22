@@ -1,4 +1,4 @@
-// src/wishlist/wishlist.module.ts
+// src/modules/wishlist/wishlist.module.ts
 
 import { Module } from '@nestjs/common';
 import { WishlistResolver } from './graphql/wishlist.resolver';

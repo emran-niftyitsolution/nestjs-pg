@@ -1,4 +1,4 @@
-// src/coupons/graphql/coupons.resolver.ts
+// src/modules/coupons/graphql/coupons.resolver.ts
 
 import { UseGuards } from '@nestjs/common';
 import { Args, Float, ID, Mutation, Query, Resolver } from '@nestjs/graphql';

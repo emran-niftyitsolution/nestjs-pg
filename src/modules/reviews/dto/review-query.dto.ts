@@ -1,4 +1,4 @@
-// src/reviews/dto/review-query.dto.ts
+// src/modules/reviews/dto/review-query.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { cursorPaginationQuerySchema } from '@/common/dto/cursor-pagination-query.dto';

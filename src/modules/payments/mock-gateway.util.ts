@@ -1,4 +1,4 @@
-// src/payments/mock-gateway.util.ts
+// src/modules/payments/mock-gateway.util.ts
 
 import { randomBytes } from 'node:crypto';
 import { PaymentProvider } from '@/common/enums/payment-provider.enum';

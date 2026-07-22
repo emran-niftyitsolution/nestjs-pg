@@ -1,4 +1,4 @@
-// src/notifications/notifications.service.ts
+// src/modules/notifications/notifications.service.ts
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { and, count, eq, isNull } from 'drizzle-orm';

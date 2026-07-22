@@ -1,4 +1,4 @@
-// src/addresses/graphql/update-address.input.ts
+// src/modules/addresses/graphql/update-address.input.ts
 
 import { InputType, PartialType } from '@nestjs/graphql';
 import { CreateAddressInput } from './create-address.input';

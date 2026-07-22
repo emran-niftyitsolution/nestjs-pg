@@ -1,4 +1,4 @@
-// src/brands/dto/brand-response.dto.ts
+// src/modules/brands/dto/brand-response.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

@@ -1,4 +1,4 @@
-// src/auth/auth.controller.ts
+// src/modules/auth/auth.controller.ts
 
 import {
   Body,
@@ -19,7 +19,7 @@ import {
 } from '@nestjs/swagger';
 import { Public } from '@/common/decorators/public.decorator';
 import { MessageResponseDto } from '@/common/dto/message-response.dto';
-import { CreateUserDto } from '@/users/dto/create-user.dto';
+import { CreateUserDto } from '@/modules/users/dto/create-user.dto';
 import { AuthService } from './auth.service';
 import type { AuthenticatedUser } from './auth.types';
 import { CurrentUser } from './current-user.decorator';

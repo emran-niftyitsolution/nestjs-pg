@@ -1,4 +1,4 @@
-// src/products/admin-products.controller.ts
+// src/modules/products/admin-products.controller.ts
 
 import {
   Body,

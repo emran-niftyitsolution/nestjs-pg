@@ -1,4 +1,4 @@
-// src/categories/categories.service.ts
+// src/modules/categories/categories.service.ts
 
 import {
   ConflictException,

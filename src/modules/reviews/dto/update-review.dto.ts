@@ -1,4 +1,4 @@
-// src/reviews/dto/update-review.dto.ts
+// src/modules/reviews/dto/update-review.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { createReviewSchema } from './create-review.dto';

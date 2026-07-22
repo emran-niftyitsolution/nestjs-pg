@@ -1,4 +1,4 @@
-// src/cart/graphql/cart.model.ts
+// src/modules/cart/graphql/cart.model.ts
 
 import { Field, Float, ID, Int, ObjectType } from '@nestjs/graphql';
 

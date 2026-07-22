@@ -1,4 +1,4 @@
-// src/addresses/addresses.controller.ts
+// src/modules/addresses/addresses.controller.ts
 
 import {
   Body,
@@ -20,8 +20,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { AuthenticatedUser } from '@/auth/auth.types';
-import { CurrentUser } from '@/auth/current-user.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
 import { AddressesService } from './addresses.service';
 import { AddressResponseDto } from './dto/address-response.dto';
 import { CreateAddressDto } from './dto/create-address.dto';

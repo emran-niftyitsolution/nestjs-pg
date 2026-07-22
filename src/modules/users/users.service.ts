@@ -1,4 +1,4 @@
-// src/users/users.service.ts
+// src/modules/users/users.service.ts
 
 import {
   ConflictException,

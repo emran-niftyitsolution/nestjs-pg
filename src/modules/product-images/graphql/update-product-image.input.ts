@@ -1,4 +1,4 @@
-// src/product-images/graphql/update-product-image.input.ts
+// src/modules/product-images/graphql/update-product-image.input.ts
 
 import { InputType, PartialType } from '@nestjs/graphql';
 import { CreateProductImageInput } from './create-product-image.input';

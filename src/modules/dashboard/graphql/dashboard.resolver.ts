@@ -1,4 +1,4 @@
-// src/dashboard/graphql/dashboard.resolver.ts
+// src/modules/dashboard/graphql/dashboard.resolver.ts
 
 import { UseGuards } from '@nestjs/common';
 import { Args, Int, Query, Resolver } from '@nestjs/graphql';

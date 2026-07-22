@@ -1,4 +1,4 @@
-// src/inventory/graphql/inventory.resolver.ts
+// src/modules/inventory/graphql/inventory.resolver.ts
 
 import { UseGuards } from '@nestjs/common';
 import { Args, ID, Query, Resolver } from '@nestjs/graphql';

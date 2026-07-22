@@ -1,4 +1,4 @@
-// src/dashboard/dashboard.service.ts
+// src/modules/dashboard/dashboard.service.ts
 
 import { Injectable } from '@nestjs/common';
 import { count, desc, eq, inArray, lte, sql, sum } from 'drizzle-orm';

@@ -1,4 +1,4 @@
-// src/cart/graphql/cart-item.input.ts
+// src/modules/cart/graphql/cart-item.input.ts
 
 import { Field, ID, InputType, Int } from '@nestjs/graphql';
 

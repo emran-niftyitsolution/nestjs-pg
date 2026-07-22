@@ -1,4 +1,4 @@
-// src/reviews/dto/review-response.dto.ts
+// src/modules/reviews/dto/review-response.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

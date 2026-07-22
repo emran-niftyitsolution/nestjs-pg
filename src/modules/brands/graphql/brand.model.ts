@@ -1,4 +1,4 @@
-// src/brands/graphql/brand.model.ts
+// src/modules/brands/graphql/brand.model.ts
 
 import { Field, ID, ObjectType } from '@nestjs/graphql';
 

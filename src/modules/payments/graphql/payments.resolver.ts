@@ -1,14 +1,14 @@
-// src/payments/graphql/payments.resolver.ts
+// src/modules/payments/graphql/payments.resolver.ts
 
 import { UseGuards } from '@nestjs/common';
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
-import type { AuthenticatedUser } from '@/auth/auth.types';
-import { CurrentUser } from '@/auth/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { PaymentStatus } from '@/common/enums/payment-status.enum';
 import { Role } from '@/common/enums/role.enum';
 import { CursorPaginatedType } from '@/common/graphql/cursor-paginated.type';
 import { RolesGuard } from '@/common/guards/roles.guard';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
 import { PaymentsService } from '../payments.service';
 import { CreatePaymentInput } from './create-payment.input';
 import { PaymentModel } from './payment.model';

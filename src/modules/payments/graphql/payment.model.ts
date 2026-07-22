@@ -1,4 +1,4 @@
-// src/payments/graphql/payment.model.ts
+// src/modules/payments/graphql/payment.model.ts
 
 import { Field, Float, ID, ObjectType } from '@nestjs/graphql';
 import GraphQLJSON from 'graphql-type-json';

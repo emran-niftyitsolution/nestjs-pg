@@ -1,4 +1,4 @@
-// src/brands/graphql/brands.resolver.ts
+// src/modules/brands/graphql/brands.resolver.ts
 
 import { UseGuards } from '@nestjs/common';
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';

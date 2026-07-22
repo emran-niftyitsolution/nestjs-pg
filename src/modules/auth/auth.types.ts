@@ -1,4 +1,4 @@
-// src/auth/auth.types.ts
+// src/modules/auth/auth.types.ts
 
 import type { Role } from '@/common/enums/role.enum';
 

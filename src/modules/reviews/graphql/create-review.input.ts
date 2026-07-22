@@ -1,4 +1,4 @@
-// src/reviews/graphql/create-review.input.ts
+// src/modules/reviews/graphql/create-review.input.ts
 
 import { Field, InputType, Int } from '@nestjs/graphql';
 

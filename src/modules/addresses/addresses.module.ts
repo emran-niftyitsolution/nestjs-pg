@@ -1,4 +1,4 @@
-// src/addresses/addresses.module.ts
+// src/modules/addresses/addresses.module.ts
 
 import { Module } from '@nestjs/common';
 import { AddressesController } from './addresses.controller';

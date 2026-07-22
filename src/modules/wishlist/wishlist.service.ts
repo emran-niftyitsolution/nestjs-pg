@@ -1,4 +1,4 @@
-// src/wishlist/wishlist.service.ts
+// src/modules/wishlist/wishlist.service.ts
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq } from 'drizzle-orm';

@@ -1,4 +1,4 @@
-// src/categories/graphql/category.model.ts
+// src/modules/categories/graphql/category.model.ts
 
 import { Field, ID, Int, ObjectType } from '@nestjs/graphql';
 

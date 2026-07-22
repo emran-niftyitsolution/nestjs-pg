@@ -1,4 +1,4 @@
-// src/products/products.service.ts
+// src/modules/products/products.service.ts
 
 import {
   BadRequestException,

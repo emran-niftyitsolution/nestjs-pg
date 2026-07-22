@@ -1,4 +1,4 @@
-// src/categories/categories.module.ts
+// src/modules/categories/categories.module.ts
 
 import { Module } from '@nestjs/common';
 import { CategoriesController } from './categories.controller';

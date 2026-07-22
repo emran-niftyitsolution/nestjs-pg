@@ -1,4 +1,4 @@
-// src/auth/jwt-auth.guard.ts
+// src/modules/auth/jwt-auth.guard.ts
 
 import { type ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';

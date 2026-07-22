@@ -1,4 +1,4 @@
-// src/orders/dto/order-query.dto.ts
+// src/modules/orders/dto/order-query.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

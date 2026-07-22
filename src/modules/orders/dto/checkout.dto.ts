@@ -1,4 +1,4 @@
-// src/orders/dto/checkout.dto.ts
+// src/modules/orders/dto/checkout.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

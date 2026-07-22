@@ -1,4 +1,4 @@
-// src/payments/payments.service.ts
+// src/modules/payments/payments.service.ts
 
 import {
   BadRequestException,
@@ -14,7 +14,7 @@ import { withCursorPagination } from '@/common/utils/cursor-pagination.util';
 import { isUniqueViolation } from '@/common/utils/postgres-error.util';
 import { DatabaseService } from '@/database/database.service';
 import { orders, type Payment, payments } from '@/database/schema';
-import { OrdersService } from '@/orders/orders.service';
+import { OrdersService } from '@/modules/orders/orders.service';
 import type { CreatePaymentDto } from './dto/create-payment.dto';
 import type { PaymentQueryDto } from './dto/payment-query.dto';
 import { callMockGateway } from './mock-gateway.util';

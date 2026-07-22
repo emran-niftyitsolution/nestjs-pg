@@ -1,4 +1,4 @@
-// src/notifications/notifications.controller.ts
+// src/modules/notifications/notifications.controller.ts
 
 import {
   Controller,
@@ -18,9 +18,9 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { AuthenticatedUser } from '@/auth/auth.types';
-import { CurrentUser } from '@/auth/current-user.decorator';
 import { CursorPaginatedResponseDto } from '@/common/dto/cursor-paginated-response.dto';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
 import { NotificationQueryDto } from './dto/notification-query.dto';
 import { NotificationResponseDto } from './dto/notification-response.dto';
 import { NotificationsService } from './notifications.service';

@@ -1,8 +1,8 @@
-// src/addresses/graphql/addresses.resolver.ts
+// src/modules/addresses/graphql/addresses.resolver.ts
 
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
-import type { AuthenticatedUser } from '@/auth/auth.types';
-import { CurrentUser } from '@/auth/current-user.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
 import { AddressesService } from '../addresses.service';
 import { AddressModel } from './address.model';
 import { CreateAddressInput } from './create-address.input';

@@ -1,4 +1,4 @@
-// src/products/graphql/product-query.args.ts
+// src/modules/products/graphql/product-query.args.ts
 
 import { ArgsType, Field } from '@nestjs/graphql';
 import { ProductSort } from '@/common/enums/product-sort.enum';

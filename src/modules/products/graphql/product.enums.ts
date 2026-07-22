@@ -1,4 +1,4 @@
-// src/products/graphql/product.enums.ts
+// src/modules/products/graphql/product.enums.ts
 
 import { registerEnumType } from '@nestjs/graphql';
 import { ProductSort } from '@/common/enums/product-sort.enum';

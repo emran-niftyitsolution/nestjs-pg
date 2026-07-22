@@ -1,4 +1,4 @@
-// src/notifications/dto/notification-query.dto.ts
+// src/modules/notifications/dto/notification-query.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { cursorPaginationQuerySchema } from '@/common/dto/cursor-pagination-query.dto';

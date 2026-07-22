@@ -1,4 +1,4 @@
-// src/coupons/graphql/create-coupon.input.ts
+// src/modules/coupons/graphql/create-coupon.input.ts
 
 import { Field, Float, InputType, Int } from '@nestjs/graphql';
 import { CouponType } from '@/common/enums/coupon-type.enum';

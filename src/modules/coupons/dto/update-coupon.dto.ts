@@ -1,4 +1,4 @@
-// src/coupons/dto/update-coupon.dto.ts
+// src/modules/coupons/dto/update-coupon.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

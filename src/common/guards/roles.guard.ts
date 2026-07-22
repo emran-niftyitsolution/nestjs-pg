@@ -8,9 +8,9 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { GqlExecutionContext } from '@nestjs/graphql';
-import type { AuthenticatedUser } from '@/auth/auth.types';
 import { ROLES_KEY } from '@/common/decorators/roles.decorator';
 import type { Role } from '@/common/enums/role.enum';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
 
 interface RequestWithUser {
   user?: AuthenticatedUser;

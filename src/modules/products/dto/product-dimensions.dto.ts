@@ -1,4 +1,4 @@
-// src/products/dto/product-dimensions.dto.ts
+// src/modules/products/dto/product-dimensions.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

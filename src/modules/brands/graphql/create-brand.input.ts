@@ -1,4 +1,4 @@
-// src/brands/graphql/create-brand.input.ts
+// src/modules/brands/graphql/create-brand.input.ts
 
 import { Field, InputType } from '@nestjs/graphql';
 

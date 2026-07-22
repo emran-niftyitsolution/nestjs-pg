@@ -1,4 +1,4 @@
-// src/inventory/inventory.module.ts
+// src/modules/inventory/inventory.module.ts
 
 import { Module } from '@nestjs/common';
 import { AdminInventoryController } from './admin-inventory.controller';

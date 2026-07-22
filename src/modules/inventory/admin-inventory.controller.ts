@@ -1,4 +1,4 @@
-// src/inventory/admin-inventory.controller.ts
+// src/modules/inventory/admin-inventory.controller.ts
 
 import {
   Controller,

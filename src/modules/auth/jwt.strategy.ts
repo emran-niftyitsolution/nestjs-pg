@@ -1,4 +1,4 @@
-// src/auth/jwt.strategy.ts
+// src/modules/auth/jwt.strategy.ts
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';

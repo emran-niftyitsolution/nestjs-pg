@@ -1,13 +1,13 @@
-// src/auth/auth.service.ts
+// src/modules/auth/auth.service.ts
 
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { verify as argon2Verify } from 'argon2';
 import { MessageResponseDto } from '@/common/dto/message-response.dto';
 import { NotificationType } from '@/common/enums/notification-type.enum';
-import { NotificationsService } from '@/notifications/notifications.service';
-import { CreateUserDto } from '@/users/dto/create-user.dto';
-import { SafeUser, UsersService } from '@/users/users.service';
+import { NotificationsService } from '@/modules/notifications/notifications.service';
+import { CreateUserDto } from '@/modules/users/dto/create-user.dto';
+import { SafeUser, UsersService } from '@/modules/users/users.service';
 import { JwtPayload } from './auth.types';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';

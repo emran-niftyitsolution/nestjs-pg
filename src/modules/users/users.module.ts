@@ -1,4 +1,4 @@
-// src/users/users.module.ts
+// src/modules/users/users.module.ts
 
 import { Module } from '@nestjs/common';
 import { AdminUsersController } from './admin-users.controller';

@@ -1,4 +1,4 @@
-// src/reviews/reviews.service.ts
+// src/modules/reviews/reviews.service.ts
 
 import {
   ConflictException,

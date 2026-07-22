@@ -1,8 +1,8 @@
-// src/cart/graphql/cart.resolver.ts
+// src/modules/cart/graphql/cart.resolver.ts
 
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
-import type { AuthenticatedUser } from '@/auth/auth.types';
-import { CurrentUser } from '@/auth/current-user.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
 import { CartService } from '../cart.service';
 import { CartModel } from './cart.model';
 import { AddCartItemInput, UpdateCartItemInput } from './cart-item.input';

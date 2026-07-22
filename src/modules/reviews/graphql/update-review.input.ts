@@ -1,4 +1,4 @@
-// src/reviews/graphql/update-review.input.ts
+// src/modules/reviews/graphql/update-review.input.ts
 
 import { InputType, PartialType } from '@nestjs/graphql';
 import { CreateReviewInput } from './create-review.input';

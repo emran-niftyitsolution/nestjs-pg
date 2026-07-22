@@ -1,4 +1,4 @@
-// src/dashboard/graphql/dashboard.model.ts
+// src/modules/dashboard/graphql/dashboard.model.ts
 
 import { Field, Float, ID, Int, ObjectType } from '@nestjs/graphql';
 

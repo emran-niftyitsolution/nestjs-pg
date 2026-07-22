@@ -1,4 +1,4 @@
-// src/categories/dto/category-response.dto.ts
+// src/modules/categories/dto/category-response.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

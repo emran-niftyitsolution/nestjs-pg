@@ -1,4 +1,4 @@
-// src/products/dto/update-product.dto.ts
+// src/modules/products/dto/update-product.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { createProductSchema } from './create-product.dto';

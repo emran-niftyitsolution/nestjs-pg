@@ -1,4 +1,4 @@
-// src/coupons/dto/coupon-validation-response.dto.ts
+// src/modules/coupons/dto/coupon-validation-response.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

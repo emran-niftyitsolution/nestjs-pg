@@ -1,4 +1,4 @@
-// src/reviews/graphql/review.model.ts
+// src/modules/reviews/graphql/review.model.ts
 
 import { Field, Float, ID, Int, ObjectType } from '@nestjs/graphql';
 

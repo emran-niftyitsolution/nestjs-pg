@@ -1,4 +1,4 @@
-// src/orders/graphql/order.model.ts
+// src/modules/orders/graphql/order.model.ts
 
 import { Field, Float, ID, Int, ObjectType } from '@nestjs/graphql';
 import { OrderStatus } from '@/common/enums/order-status.enum';

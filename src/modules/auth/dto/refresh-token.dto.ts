@@ -1,4 +1,4 @@
-// src/auth/dto/refresh-token.dto.ts
+// src/modules/auth/dto/refresh-token.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

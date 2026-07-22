@@ -1,4 +1,4 @@
-// src/products/dto/admin-product-query.dto.ts
+// src/modules/products/dto/admin-product-query.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

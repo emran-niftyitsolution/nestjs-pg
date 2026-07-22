@@ -1,4 +1,4 @@
-// src/payments/dto/payment-query.dto.ts
+// src/modules/payments/dto/payment-query.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

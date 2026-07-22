@@ -1,4 +1,4 @@
-// src/reviews/reviews.module.ts
+// src/modules/reviews/reviews.module.ts
 
 import { Module } from '@nestjs/common';
 import { ReviewsResolver } from './graphql/reviews.resolver';

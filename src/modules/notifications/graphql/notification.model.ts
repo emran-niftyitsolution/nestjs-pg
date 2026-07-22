@@ -1,4 +1,4 @@
-// src/notifications/graphql/notification.model.ts
+// src/modules/notifications/graphql/notification.model.ts
 
 import { Field, ID, ObjectType } from '@nestjs/graphql';
 import GraphQLJSON from 'graphql-type-json';

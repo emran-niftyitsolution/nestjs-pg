@@ -1,4 +1,4 @@
-// src/auth/dto/token-pair-response.dto.ts
+// src/modules/auth/dto/token-pair-response.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

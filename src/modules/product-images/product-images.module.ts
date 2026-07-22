@@ -1,7 +1,7 @@
-// src/product-images/product-images.module.ts
+// src/modules/product-images/product-images.module.ts
 
 import { Module } from '@nestjs/common';
-import { ProductsModule } from '@/products/products.module';
+import { ProductsModule } from '@/modules/products/products.module';
 import { AdminProductImagesController } from './admin-product-images.controller';
 import { ProductImagesResolver } from './graphql/product-images.resolver';
 import { ProductImagesController } from './product-images.controller';

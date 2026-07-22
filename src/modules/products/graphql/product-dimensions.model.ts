@@ -1,4 +1,4 @@
-// src/products/graphql/product-dimensions.model.ts
+// src/modules/products/graphql/product-dimensions.model.ts
 
 import { Field, Float, InputType, ObjectType } from '@nestjs/graphql';
 

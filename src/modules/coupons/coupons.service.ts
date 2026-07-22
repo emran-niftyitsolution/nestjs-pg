@@ -1,4 +1,4 @@
-// src/coupons/coupons.service.ts
+// src/modules/coupons/coupons.service.ts
 
 import {
   BadRequestException,

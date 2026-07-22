@@ -1,4 +1,4 @@
-// src/users/dto/update-user-role.dto.ts
+// src/modules/users/dto/update-user-role.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

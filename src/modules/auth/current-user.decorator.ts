@@ -1,4 +1,4 @@
-// src/auth/current-user.decorator.ts
+// src/modules/auth/current-user.decorator.ts
 
 import { createParamDecorator, type ExecutionContext } from '@nestjs/common';
 import { GqlExecutionContext } from '@nestjs/graphql';

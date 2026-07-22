@@ -1,4 +1,4 @@
-// src/orders/orders.service.ts
+// src/modules/orders/orders.service.ts
 
 import {
   BadRequestException,
@@ -11,7 +11,6 @@ import { OrderStatus } from '@/common/enums/order-status.enum';
 import type { CursorPaginatedResult } from '@/common/interfaces/cursor-paginated-result.interface';
 import { decodeCursor, encodeCursor } from '@/common/utils/cursor.util';
 import { withCursorPagination } from '@/common/utils/cursor-pagination.util';
-import { CouponsService } from '@/coupons/coupons.service';
 import { DatabaseService } from '@/database/database.service';
 import type { DbTransaction } from '@/database/db-transaction.type';
 import {
@@ -24,8 +23,9 @@ import {
   orders,
   products,
 } from '@/database/schema';
-import { InventoryService } from '@/inventory/inventory.service';
-import { NotificationsService } from '@/notifications/notifications.service';
+import { CouponsService } from '@/modules/coupons/coupons.service';
+import { InventoryService } from '@/modules/inventory/inventory.service';
+import { NotificationsService } from '@/modules/notifications/notifications.service';
 import type { CheckoutDto } from './dto/checkout.dto';
 import type { OrderQueryDto } from './dto/order-query.dto';
 import type { OrderResponseDto } from './dto/order-response.dto';

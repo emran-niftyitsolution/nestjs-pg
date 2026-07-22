@@ -1,4 +1,4 @@
-// src/brands/brands.controller.ts
+// src/modules/brands/brands.controller.ts
 
 import {
   Body,

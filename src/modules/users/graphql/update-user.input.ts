@@ -1,4 +1,4 @@
-// src/users/graphql/update-user.input.ts
+// src/modules/users/graphql/update-user.input.ts
 
 import { Field, InputType } from '@nestjs/graphql';
 

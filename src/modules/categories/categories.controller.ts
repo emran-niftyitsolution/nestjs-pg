@@ -1,4 +1,4 @@
-// src/categories/categories.controller.ts
+// src/modules/categories/categories.controller.ts
 
 import {
   Body,

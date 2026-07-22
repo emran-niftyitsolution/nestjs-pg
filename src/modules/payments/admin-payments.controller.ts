@@ -1,4 +1,4 @@
-// src/payments/admin-payments.controller.ts
+// src/modules/payments/admin-payments.controller.ts
 
 import {
   Body,

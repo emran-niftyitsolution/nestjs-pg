@@ -1,4 +1,4 @@
-// src/payments/graphql/create-payment.input.ts
+// src/modules/payments/graphql/create-payment.input.ts
 
 import { Field, InputType } from '@nestjs/graphql';
 import { PaymentProvider } from '@/common/enums/payment-provider.enum';

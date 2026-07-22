@@ -1,4 +1,4 @@
-// src/orders/graphql/order-query.args.ts
+// src/modules/orders/graphql/order-query.args.ts
 
 import { ArgsType, Field } from '@nestjs/graphql';
 import { OrderStatus } from '@/common/enums/order-status.enum';

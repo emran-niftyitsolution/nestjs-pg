@@ -1,4 +1,4 @@
-// src/payments/graphql/payment.enums.ts
+// src/modules/payments/graphql/payment.enums.ts
 
 import { registerEnumType } from '@nestjs/graphql';
 import { PaymentProvider } from '@/common/enums/payment-provider.enum';

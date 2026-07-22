@@ -1,4 +1,4 @@
-// src/wishlist/wishlist.controller.ts
+// src/modules/wishlist/wishlist.controller.ts
 
 import {
   Controller,
@@ -20,8 +20,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { AuthenticatedUser } from '@/auth/auth.types';
-import { CurrentUser } from '@/auth/current-user.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
 import { WishlistItemResponseDto } from './dto/wishlist-item-response.dto';
 import { WishlistService } from './wishlist.service';
 

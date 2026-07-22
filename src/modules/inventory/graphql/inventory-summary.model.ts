@@ -1,4 +1,4 @@
-// src/inventory/graphql/inventory-summary.model.ts
+// src/modules/inventory/graphql/inventory-summary.model.ts
 
 import { Field, ID, Int, ObjectType } from '@nestjs/graphql';
 

@@ -1,4 +1,4 @@
-// src/products/products.module.ts
+// src/modules/products/products.module.ts
 
 import { Module } from '@nestjs/common';
 import { AdminProductsController } from './admin-products.controller';

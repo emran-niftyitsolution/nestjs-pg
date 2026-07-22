@@ -1,4 +1,4 @@
-// src/inventory/dto/inventory-response.dto.ts
+// src/modules/inventory/dto/inventory-response.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

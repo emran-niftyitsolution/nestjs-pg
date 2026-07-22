@@ -1,4 +1,4 @@
-// src/brands/dto/brand-query.dto.ts
+// src/modules/brands/dto/brand-query.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { cursorPaginationQuerySchema } from '@/common/dto/cursor-pagination-query.dto';

@@ -1,4 +1,4 @@
-// src/inventory/inventory.service.ts
+// src/modules/inventory/inventory.service.ts
 
 import {
   BadRequestException,

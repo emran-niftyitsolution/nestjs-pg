@@ -1,4 +1,4 @@
-// src/dashboard/dto/dashboard-summary-response.dto.ts
+// src/modules/dashboard/dto/dashboard-summary-response.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

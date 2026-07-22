@@ -1,8 +1,8 @@
-// src/wishlist/graphql/wishlist.resolver.ts
+// src/modules/wishlist/graphql/wishlist.resolver.ts
 
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
-import type { AuthenticatedUser } from '@/auth/auth.types';
-import { CurrentUser } from '@/auth/current-user.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
 import { WishlistService } from '../wishlist.service';
 import { WishlistItemModel } from './wishlist-item.model';
 

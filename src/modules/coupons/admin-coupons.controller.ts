@@ -1,4 +1,4 @@
-// src/coupons/admin-coupons.controller.ts
+// src/modules/coupons/admin-coupons.controller.ts
 
 import {
   Body,

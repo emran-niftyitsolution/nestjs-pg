@@ -1,4 +1,4 @@
-// src/products/graphql/create-product.input.ts
+// src/modules/products/graphql/create-product.input.ts
 
 import { Field, Float, ID, InputType, Int } from '@nestjs/graphql';
 import GraphQLJSON from 'graphql-type-json';

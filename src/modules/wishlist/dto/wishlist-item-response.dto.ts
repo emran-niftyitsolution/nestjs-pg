@@ -1,4 +1,4 @@
-// src/wishlist/dto/wishlist-item-response.dto.ts
+// src/modules/wishlist/dto/wishlist-item-response.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

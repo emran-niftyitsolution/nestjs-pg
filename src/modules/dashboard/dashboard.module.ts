@@ -1,4 +1,4 @@
-// src/dashboard/dashboard.module.ts
+// src/modules/dashboard/dashboard.module.ts
 
 import { Module } from '@nestjs/common';
 import { DashboardController } from './dashboard.controller';

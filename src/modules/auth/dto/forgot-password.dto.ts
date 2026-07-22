@@ -1,4 +1,4 @@
-// src/auth/dto/forgot-password.dto.ts
+// src/modules/auth/dto/forgot-password.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

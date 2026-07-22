@@ -1,4 +1,4 @@
-// src/categories/dto/update-category.dto.ts
+// src/modules/categories/dto/update-category.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { createCategorySchema } from './create-category.dto';

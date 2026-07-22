@@ -1,4 +1,4 @@
-// src/orders/admin-orders.controller.ts
+// src/modules/orders/admin-orders.controller.ts
 
 import {
   Body,

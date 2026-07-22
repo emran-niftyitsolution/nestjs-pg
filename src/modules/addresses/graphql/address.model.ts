@@ -1,4 +1,4 @@
-// src/addresses/graphql/address.model.ts
+// src/modules/addresses/graphql/address.model.ts
 
 import { Field, ID, ObjectType } from '@nestjs/graphql';
 

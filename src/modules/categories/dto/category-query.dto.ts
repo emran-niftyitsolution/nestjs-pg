@@ -1,4 +1,4 @@
-// src/categories/dto/category-query.dto.ts
+// src/modules/categories/dto/category-query.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

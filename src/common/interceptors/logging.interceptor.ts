@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { tap } from 'rxjs/operators';
-import type { AuthenticatedUser } from '@/auth/auth.types';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
 
 type RequestWithUser = Request & { user?: AuthenticatedUser };
 

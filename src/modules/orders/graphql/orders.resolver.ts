@@ -1,14 +1,14 @@
-// src/orders/graphql/orders.resolver.ts
+// src/modules/orders/graphql/orders.resolver.ts
 
 import { UseGuards } from '@nestjs/common';
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
-import type { AuthenticatedUser } from '@/auth/auth.types';
-import { CurrentUser } from '@/auth/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { OrderStatus } from '@/common/enums/order-status.enum';
 import { Role } from '@/common/enums/role.enum';
 import { CursorPaginatedType } from '@/common/graphql/cursor-paginated.type';
 import { RolesGuard } from '@/common/guards/roles.guard';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
 import { OrdersService } from '../orders.service';
 import { CheckoutInput } from './checkout.input';
 import { OrderModel } from './order.model';

@@ -1,4 +1,4 @@
-// src/coupons/graphql/update-coupon.input.ts
+// src/modules/coupons/graphql/update-coupon.input.ts
 
 import { InputType, PartialType } from '@nestjs/graphql';
 import { CreateCouponInput } from './create-coupon.input';

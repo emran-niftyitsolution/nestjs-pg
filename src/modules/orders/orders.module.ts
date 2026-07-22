@@ -1,9 +1,9 @@
-// src/orders/orders.module.ts
+// src/modules/orders/orders.module.ts
 
 import { Module } from '@nestjs/common';
-import { CouponsModule } from '@/coupons/coupons.module';
-import { InventoryModule } from '@/inventory/inventory.module';
-import { NotificationsModule } from '@/notifications/notifications.module';
+import { CouponsModule } from '@/modules/coupons/coupons.module';
+import { InventoryModule } from '@/modules/inventory/inventory.module';
+import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { AdminOrdersController } from './admin-orders.controller';
 import { OrdersResolver } from './graphql/orders.resolver';
 import { OrdersController } from './orders.controller';

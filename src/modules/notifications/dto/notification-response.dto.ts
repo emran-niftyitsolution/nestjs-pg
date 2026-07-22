@@ -1,4 +1,4 @@
-// src/notifications/dto/notification-response.dto.ts
+// src/modules/notifications/dto/notification-response.dto.ts
 
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';

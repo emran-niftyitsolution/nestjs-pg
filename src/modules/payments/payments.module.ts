@@ -1,7 +1,7 @@
-// src/payments/payments.module.ts
+// src/modules/payments/payments.module.ts
 
 import { Module } from '@nestjs/common';
-import { OrdersModule } from '@/orders/orders.module';
+import { OrdersModule } from '@/modules/orders/orders.module';
 import { AdminPaymentsController } from './admin-payments.controller';
 import { PaymentsResolver } from './graphql/payments.resolver';
 import { PaymentsController } from './payments.controller';

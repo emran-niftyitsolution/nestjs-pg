@@ -1,4 +1,4 @@
-// src/cart/cart.module.ts
+// src/modules/cart/cart.module.ts
 
 import { Module } from '@nestjs/common';
 import { CartController } from './cart.controller';

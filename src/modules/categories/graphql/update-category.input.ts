@@ -1,4 +1,4 @@
-// src/categories/graphql/update-category.input.ts
+// src/modules/categories/graphql/update-category.input.ts
 
 import { InputType, PartialType } from '@nestjs/graphql';
 import { CreateCategoryInput } from './create-category.input';

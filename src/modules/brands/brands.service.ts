@@ -1,4 +1,4 @@
-// src/brands/brands.service.ts
+// src/modules/brands/brands.service.ts
 
 import {
   ConflictException,

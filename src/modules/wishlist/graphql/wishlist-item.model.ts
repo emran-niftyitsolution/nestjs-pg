@@ -1,4 +1,4 @@
-// src/wishlist/graphql/wishlist-item.model.ts
+// src/modules/wishlist/graphql/wishlist-item.model.ts
 
 import { Field, Float, ID, Int, ObjectType } from '@nestjs/graphql';
 

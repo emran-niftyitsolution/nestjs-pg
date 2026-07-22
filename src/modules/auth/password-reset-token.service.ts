@@ -1,4 +1,4 @@
-// src/auth/password-reset-token.service.ts
+// src/modules/auth/password-reset-token.service.ts
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';

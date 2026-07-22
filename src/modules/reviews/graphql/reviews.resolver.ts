@@ -1,11 +1,11 @@
-// src/reviews/graphql/reviews.resolver.ts
+// src/modules/reviews/graphql/reviews.resolver.ts
 
 import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
-import type { AuthenticatedUser } from '@/auth/auth.types';
-import { CurrentUser } from '@/auth/current-user.decorator';
 import { Public } from '@/common/decorators/public.decorator';
 import { CursorPaginatedType } from '@/common/graphql/cursor-paginated.type';
 import { CursorPaginationArgs } from '@/common/graphql/cursor-pagination.args';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
 import type { ReviewRow } from '../reviews.service';
 import { ReviewsService } from '../reviews.service';
 import { CreateReviewInput } from './create-review.input';

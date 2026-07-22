@@ -1,4 +1,4 @@
-// src/coupons/coupons.controller.ts
+// src/modules/coupons/coupons.controller.ts
 
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import {

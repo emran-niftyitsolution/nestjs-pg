@@ -1,4 +1,4 @@
-// src/users/admin-users.controller.ts
+// src/modules/users/admin-users.controller.ts
 
 import {
   Body,

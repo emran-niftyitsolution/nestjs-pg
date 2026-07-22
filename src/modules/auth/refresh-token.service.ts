@@ -1,4 +1,4 @@
-// src/auth/refresh-token.service.ts
+// src/modules/auth/refresh-token.service.ts
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';

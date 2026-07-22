@@ -1,4 +1,4 @@
-// src/orders/graphql/checkout.input.ts
+// src/modules/orders/graphql/checkout.input.ts
 
 import { Field, ID, InputType } from '@nestjs/graphql';
 

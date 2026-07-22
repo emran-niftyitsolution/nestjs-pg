@@ -1,4 +1,4 @@
-// src/users/graphql/user.model.ts
+// src/modules/users/graphql/user.model.ts
 
 import { Field, ID, ObjectType } from '@nestjs/graphql';
 import { Role } from '@/common/enums/role.enum';
