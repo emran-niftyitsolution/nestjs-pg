@@ -1,10 +1,14 @@
 allowBuilds:
   '@apollo/protobufjs': true
+  '@prisma/engines': true
   '@scarf/scarf': true
   argon2: true
   esbuild: true
+  prisma: true
 onlyBuiltDependencies:
+  - '@prisma/engines'
   - argon2
   - esbuild
+  - prisma
 patchedDependencies:
   drizzle-dbml-generator@0.10.0: patches/drizzle-dbml-generator@0.10.0.patch

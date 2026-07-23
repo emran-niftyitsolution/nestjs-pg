@@ -3,13 +3,12 @@
 import { Injectable } from '@nestjs/common';
 import type { HealthIndicatorResult } from '@nestjs/terminus';
 import { HealthIndicatorService } from '@nestjs/terminus';
-import { sql } from 'drizzle-orm';
-import { DatabaseService } from '@/database/database.service';
+import { PrismaService } from '@/database/prisma.service';
 
 @Injectable()
 export class DatabaseHealthIndicator {
   constructor(
-    private readonly databaseService: DatabaseService,
+    private readonly prismaService: PrismaService,
     private readonly healthIndicatorService: HealthIndicatorService,
   ) {}
 
@@ -17,7 +16,7 @@ export class DatabaseHealthIndicator {
     const indicator = this.healthIndicatorService.check(key);
 
     try {
-      await this.databaseService.db.execute(sql`select 1`);
+      await this.prismaService.prisma.$queryRaw`select 1`;
       return indicator.up();
     } catch (error) {
       return indicator.down({

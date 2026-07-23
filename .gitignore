@@ -7,6 +7,9 @@
 # auto-generated GraphQL SDL (regenerated on every boot from resolver code)
 /src/schema.gql
 
+# auto-generated Prisma Client (regenerated via `prisma generate`)
+/src/generated/prisma
+
 # Logs
 logs
 *.log

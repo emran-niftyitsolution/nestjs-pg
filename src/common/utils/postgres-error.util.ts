@@ -1,28 +1,13 @@
 // src/common/utils/postgres-error.util.ts
 
-import { DrizzleQueryError } from 'drizzle-orm';
+import { Prisma } from '@/generated/prisma/client';
 
-const UNIQUE_VIOLATION = '23505';
-const FOREIGN_KEY_VIOLATION = '23503';
-
-interface PostgresErrorLike {
-  code: string;
-}
-
-function hasPostgresErrorCode(error: unknown): error is PostgresErrorLike {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    typeof (error as Record<string, unknown>).code === 'string'
-  );
-}
+const UNIQUE_VIOLATION = 'P2002';
+const FOREIGN_KEY_VIOLATION = 'P2003';
 
 function hasCode(error: unknown, code: string): boolean {
   return (
-    error instanceof DrizzleQueryError &&
-    hasPostgresErrorCode(error.cause) &&
-    error.cause.code === code
+    error instanceof Prisma.PrismaClientKnownRequestError && error.code === code
   );
 }
 
