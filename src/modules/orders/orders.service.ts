@@ -195,12 +195,10 @@ export class OrdersService {
         throw new NotFoundException(`Address ${dto.addressId} not found`);
       }
 
-      // Reserve every line before touching anything else — if any one
-      // line is out of stock, InventoryService.reserve throws and the
-      // transaction unwinds every reservation made so far in this loop.
-      for (const item of items) {
-        await this.inventoryService.reserve(tx, item.productId, item.quantity);
-      }
+      // Reserve every line in one statement — if any line is out of
+      // stock, InventoryService.reserve throws and the whole transaction
+      // (including this reservation) rolls back.
+      await this.inventoryService.reserve(tx, items);
 
       const subtotal = items.reduce(
         (sum, item) => sum + item.quantity * item.priceSnapshot,
@@ -374,18 +372,14 @@ export class OrdersService {
     ).map(toOrderItemRow);
 
     if (status === OrderStatus.Paid && order.status === OrderStatus.Pending) {
-      for (const item of items) {
-        await this.inventoryService.fulfill(tx, item.productId, item.quantity);
-      }
+      await this.inventoryService.fulfill(tx, items);
     }
 
     if (
       status === OrderStatus.Cancelled &&
       order.status === OrderStatus.Pending
     ) {
-      for (const item of items) {
-        await this.inventoryService.release(tx, item.productId, item.quantity);
-      }
+      await this.inventoryService.release(tx, items);
     }
 
     const updated = toOrderRow(
