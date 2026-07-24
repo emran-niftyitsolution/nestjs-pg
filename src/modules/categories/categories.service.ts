@@ -5,17 +5,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { eq, isNull, sql } from 'drizzle-orm';
 import type { CursorPaginatedResult } from '@/common/interfaces/cursor-paginated-result.interface';
-import { decodeCursor, encodeCursor } from '@/common/utils/cursor.util';
-import { withCursorPagination } from '@/common/utils/cursor-pagination.util';
+import { decodeCursor } from '@/common/utils/cursor.util';
+import {
+  toCursorPage,
+  withCursorPagination,
+} from '@/common/utils/cursor-pagination.util';
 import {
   isForeignKeyViolation,
   isUniqueViolation,
 } from '@/common/utils/postgres-error.util';
 import { slugify } from '@/common/utils/slugify.util';
-import { DatabaseService } from '@/database/database.service';
-import { type Category, categories } from '@/database/schema';
+import { PrismaService } from '@/database/prisma.service';
+import { type Category, Prisma } from '@/generated/prisma/client';
 import type { CategoryQueryDto } from './dto/category-query.dto';
 import type { CategoryTreeNodeDto } from './dto/category-tree-node.dto';
 import type { CreateCategoryDto } from './dto/create-category.dto';
@@ -25,30 +27,28 @@ interface CategoryTreeRow extends Category {
   depth: number;
 }
 
+const CATEGORY_COLUMNS_SQL = Prisma.sql`
+  id, name, slug, description, parent_id AS "parentId", sort_order AS "sortOrder",
+  is_active AS "isActive", created_at AS "createdAt", updated_at AS "updatedAt"
+`;
+
 @Injectable()
 export class CategoriesService {
-  constructor(private readonly databaseService: DatabaseService) {}
-
-  private get db() {
-    return this.databaseService.db;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateCategoryDto): Promise<Category> {
     const slug = dto.slug ?? slugify(dto.name);
 
     try {
-      const [category] = await this.db
-        .insert(categories)
-        .values({
+      return await this.prisma.category.create({
+        data: {
           name: dto.name,
           slug,
           description: dto.description,
           parentId: dto.parentId,
           sortOrder: dto.sortOrder ?? 0,
-        })
-        .returning();
-
-      return category;
+        },
+      });
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException('A category with this slug already exists');
@@ -69,9 +69,9 @@ export class CategoriesService {
     const { limit, cursor, parentId, topLevelOnly } = query;
 
     const filterWhere = topLevelOnly
-      ? isNull(categories.parentId)
+      ? Prisma.sql`parent_id IS NULL`
       : parentId
-        ? eq(categories.parentId, parentId)
+        ? Prisma.sql`parent_id = ${parentId}`
         : undefined;
 
     const [rawSortOrder, rawId] = cursor
@@ -81,37 +81,32 @@ export class CategoriesService {
       typeof rawSortOrder === 'number' ? rawSortOrder : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const pagination = withCursorPagination({
+    const {
+      where,
+      orderBy,
+      limit: lim,
+    } = withCursorPagination({
       where: filterWhere,
       limit: limit + 1,
       cursors: [
-        [categories.sortOrder, 'asc', sortOrderCursor],
-        [categories.id, 'asc', idCursor],
+        ['sort_order', 'asc', sortOrderCursor],
+        ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.db
-      .select()
-      .from(categories)
-      .where(pagination.where)
-      .orderBy(...pagination.orderBy)
-      .limit(pagination.limit);
+    const rows = await this.prisma.$queryRaw<Category[]>(Prisma.sql`
+      SELECT ${CATEGORY_COLUMNS_SQL}
+      FROM categories
+      WHERE ${where}
+      ORDER BY ${orderBy}
+      LIMIT ${lim}
+    `);
 
-    const hasNextPage = rows.length > limit;
-    const data = hasNextPage ? rows.slice(0, limit) : rows;
-    const last = data.at(-1);
-    const nextCursor =
-      hasNextPage && last ? encodeCursor(last.sortOrder, last.id) : null;
-
-    return { data, meta: { limit, hasNextPage, nextCursor } };
+    return toCursorPage(rows, limit, (last) => [last.sortOrder, last.id]);
   }
 
   async findOne(id: string): Promise<Category> {
-    const [category] = await this.db
-      .select()
-      .from(categories)
-      .where(eq(categories.id, id))
-      .limit(1);
+    const category = await this.prisma.category.findUnique({ where: { id } });
 
     if (!category) {
       throw new NotFoundException(`Category ${id} not found`);
@@ -126,10 +121,9 @@ export class CategoriesService {
    * into a tree in application code afterwards.
    */
   async findTree(): Promise<CategoryTreeNodeDto[]> {
-    const rows = await this.db
-      .select()
-      .from(categories)
-      .orderBy(categories.sortOrder, categories.name);
+    const rows = await this.prisma.category.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    });
 
     return this.nest(rows, null);
   }
@@ -142,7 +136,7 @@ export class CategoriesService {
   async findDescendants(id: string): Promise<CategoryTreeNodeDto[]> {
     await this.findOne(id);
 
-    const rows = (await this.db.execute(sql`
+    const rows = await this.prisma.$queryRaw<CategoryTreeRow[]>(Prisma.sql`
       WITH RECURSIVE subtree AS (
         SELECT id, parent_id, name, slug, description, sort_order, is_active, created_at, updated_at, 0 AS depth
         FROM categories
@@ -157,7 +151,7 @@ export class CategoriesService {
       FROM subtree
       WHERE id <> ${id}
       ORDER BY depth, sort_order
-    `)) as unknown as CategoryTreeRow[];
+    `);
 
     const plainRows: Category[] = rows.map(
       ({ depth: _depth, ...rest }) => rest,
@@ -173,7 +167,7 @@ export class CategoriesService {
   async findAncestors(id: string): Promise<Category[]> {
     await this.findOne(id);
 
-    const rows = (await this.db.execute(sql`
+    const rows = await this.prisma.$queryRaw<CategoryTreeRow[]>(Prisma.sql`
       WITH RECURSIVE ancestry AS (
         SELECT id, parent_id, name, slug, description, sort_order, is_active, created_at, updated_at, 0 AS depth
         FROM categories
@@ -188,7 +182,7 @@ export class CategoriesService {
       FROM ancestry
       WHERE id <> ${id}
       ORDER BY depth DESC
-    `)) as unknown as CategoryTreeRow[];
+    `);
 
     return rows.map(({ depth: _depth, ...rest }) => rest);
   }
@@ -199,17 +193,7 @@ export class CategoriesService {
     }
 
     try {
-      const [category] = await this.db
-        .update(categories)
-        .set(dto)
-        .where(eq(categories.id, id))
-        .returning();
-
-      if (!category) {
-        throw new NotFoundException(`Category ${id} not found`);
-      }
-
-      return category;
+      return await this.prisma.category.update({ where: { id }, data: dto });
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException('A category with this slug already exists');
@@ -219,27 +203,30 @@ export class CategoriesService {
           `Parent category ${dto.parentId} not found`,
         );
       }
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Category ${id} not found`);
+      }
       throw error;
     }
   }
 
   async remove(id: string): Promise<Category> {
     try {
-      const [category] = await this.db
-        .delete(categories)
-        .where(eq(categories.id, id))
-        .returning();
-
-      if (!category) {
-        throw new NotFoundException(`Category ${id} not found`);
-      }
-
-      return category;
+      return await this.prisma.category.delete({ where: { id } });
     } catch (error) {
       if (isForeignKeyViolation(error)) {
         throw new ConflictException(
           'Cannot delete a category that still has subcategories',
         );
+      }
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Category ${id} not found`);
       }
       throw error;
     }
@@ -260,14 +247,14 @@ export class CategoriesService {
   }
 
   private async getDescendantIds(id: string): Promise<Set<string>> {
-    const rows = (await this.db.execute(sql`
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
       WITH RECURSIVE subtree AS (
         SELECT id, parent_id FROM categories WHERE id = ${id}
         UNION ALL
         SELECT c.id, c.parent_id FROM categories c INNER JOIN subtree ON c.parent_id = subtree.id
       )
       SELECT id FROM subtree WHERE id <> ${id}
-    `)) as unknown as Array<{ id: string }>;
+    `);
 
     return new Set(rows.map((row) => row.id));
   }

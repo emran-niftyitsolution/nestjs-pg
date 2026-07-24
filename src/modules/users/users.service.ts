@@ -6,59 +6,55 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { hash as argon2Hash } from 'argon2';
-import { eq, sql } from 'drizzle-orm';
 import type { CursorPaginationQueryDto } from '@/common/dto/cursor-pagination-query.dto';
 import type { Role } from '@/common/enums/role.enum';
 import type { CursorPaginatedResult } from '@/common/interfaces/cursor-paginated-result.interface';
-import { decodeCursor, encodeCursor } from '@/common/utils/cursor.util';
-import { withCursorPagination } from '@/common/utils/cursor-pagination.util';
+import { decodeCursor } from '@/common/utils/cursor.util';
+import {
+  toCursorPage,
+  withCursorPagination,
+} from '@/common/utils/cursor-pagination.util';
 import { isUniqueViolation } from '@/common/utils/postgres-error.util';
-import { DatabaseService } from '@/database/database.service';
-import { type User, users } from '@/database/schema';
+import { PrismaService } from '@/database/prisma.service';
+import { Prisma, type User } from '@/generated/prisma/client';
 import type { CreateUserDto } from './dto/create-user.dto';
 import type { UpdateUserDto } from './dto/update-user.dto';
 
-const safeColumns = {
-  id: users.id,
-  firstName: users.firstName,
-  lastName: users.lastName,
-  email: users.email,
-  phone: users.phone,
-  avatar: users.avatar,
-  role: users.role,
-  isActive: users.isActive,
-  emailVerified: users.emailVerified,
-  createdAt: users.createdAt,
-  updatedAt: users.updatedAt,
+const safeSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+  phone: true,
+  avatar: true,
+  role: true,
+  isActive: true,
+  emailVerified: true,
+  createdAt: true,
+  updatedAt: true,
 } as const;
 
-export type SafeUser = Omit<typeof users.$inferSelect, 'password'>;
+export type SafeUser = Omit<User, 'password'>;
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly databaseService: DatabaseService) {}
-
-  private get db() {
-    return this.databaseService.db;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateUserDto): Promise<SafeUser> {
     const passwordHash = (await argon2Hash(dto.password)) as string;
 
     try {
-      const [user] = await this.db
-        .insert(users)
-        .values({
+      return await this.prisma.user.create({
+        data: {
           firstName: dto.firstName,
           lastName: dto.lastName,
           email: dto.email,
           password: passwordHash,
           phone: dto.phone,
           avatar: dto.avatar,
-        })
-        .returning(safeColumns);
-
-      return user;
+        },
+        select: safeSelect,
+      });
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException('Email is already in use');
@@ -87,52 +83,59 @@ export class UsersService {
       typeof rawCreatedAt === 'string' ? new Date(rawCreatedAt) : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const pagination = withCursorPagination({
+    const {
+      where,
+      orderBy,
+      limit: lim,
+    } = withCursorPagination({
       limit: limit + 1,
       cursors: [
-        [users.createdAt, 'desc', createdAtCursor],
-        [users.id, 'asc', idCursor],
+        ['created_at', 'desc', createdAtCursor],
+        ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.db
-      .select(safeColumns)
-      .from(users)
-      .where(pagination.where)
-      .orderBy(...pagination.orderBy)
-      .limit(pagination.limit);
+    const rows = await this.prisma.$queryRaw<SafeUser[]>(Prisma.sql`
+      SELECT id, first_name AS "firstName", last_name AS "lastName", email,
+             phone, avatar, role, is_active AS "isActive",
+             email_verified AS "emailVerified",
+             created_at AS "createdAt", updated_at AS "updatedAt"
+      FROM users
+      WHERE ${where}
+      ORDER BY ${orderBy}
+      LIMIT ${lim}
+    `);
 
-    const hasNextPage = rows.length > limit;
-    const data = hasNextPage ? rows.slice(0, limit) : rows;
-    const last = data.at(-1);
-    const nextCursor =
-      hasNextPage && last ? encodeCursor(last.createdAt, last.id) : null;
-
-    return { data, meta: { limit, hasNextPage, nextCursor } };
+    return toCursorPage(rows, limit, (last) => [last.createdAt, last.id]);
   }
 
   /**
    * Case-insensitive, matching the `lower(email)` unique index — "User@x.com"
    * must find the same account as "user@x.com" for both login and the
-   * duplicate-email check in create()/update().
+   * duplicate-email check in create()/update(). Raw SQL because this needs
+   * to hit that functional index directly (Prisma's `mode: 'insensitive'`
+   * compiles to ILIKE, which won't use a `lower(email)` expression index).
    * Includes the password hash — for internal use by AuthService only, never return this via a controller.
    */
   async findByEmail(email: string): Promise<User | undefined> {
-    const [user] = await this.db
-      .select()
-      .from(users)
-      .where(sql`lower(${users.email}) = lower(${email})`)
-      .limit(1);
+    const [user] = await this.prisma.$queryRaw<User[]>(Prisma.sql`
+      SELECT id, first_name AS "firstName", last_name AS "lastName", email,
+             password, phone, avatar, role, is_active AS "isActive",
+             email_verified AS "emailVerified",
+             created_at AS "createdAt", updated_at AS "updatedAt"
+      FROM users
+      WHERE lower(email) = lower(${email})
+      LIMIT 1
+    `);
 
     return user;
   }
 
   async findOne(id: string): Promise<SafeUser> {
-    const [user] = await this.db
-      .select(safeColumns)
-      .from(users)
-      .where(eq(users.id, id))
-      .limit(1);
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: safeSelect,
+    });
 
     if (!user) {
       throw new NotFoundException(`User ${id} not found`);
@@ -143,11 +146,7 @@ export class UsersService {
 
   /** Includes the password hash — for internal use by AuthService only, never return this via a controller. */
   async findByIdWithPassword(id: string): Promise<User> {
-    const [user] = await this.db
-      .select()
-      .from(users)
-      .where(eq(users.id, id))
-      .limit(1);
+    const user = await this.prisma.user.findUnique({ where: { id } });
 
     if (!user) {
       throw new NotFoundException(`User ${id} not found`);
@@ -159,7 +158,7 @@ export class UsersService {
   async update(id: string, dto: UpdateUserDto): Promise<SafeUser> {
     const { password, ...rest } = dto;
 
-    const updateData: Partial<typeof users.$inferInsert> = { ...rest };
+    const updateData: Prisma.UserUpdateInput = { ...rest };
     if (password) {
       updateData.password = (await argon2Hash(password)) as string;
     }
@@ -169,49 +168,56 @@ export class UsersService {
     }
 
     try {
-      const [user] = await this.db
-        .update(users)
-        .set(updateData)
-        .where(eq(users.id, id))
-        .returning(safeColumns);
-
-      if (!user) {
-        throw new NotFoundException(`User ${id} not found`);
-      }
-
-      return user;
+      return await this.prisma.user.update({
+        where: { id },
+        data: updateData,
+        select: safeSelect,
+      });
     } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new ConflictException('Email is already in use');
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (isUniqueViolation(error)) {
+          throw new ConflictException('Email is already in use');
+        }
+        if (error.code === 'P2025') {
+          throw new NotFoundException(`User ${id} not found`);
+        }
       }
       throw error;
     }
   }
 
   async updateRole(id: string, role: Role): Promise<SafeUser> {
-    const [user] = await this.db
-      .update(users)
-      .set({ role })
-      .where(eq(users.id, id))
-      .returning(safeColumns);
-
-    if (!user) {
-      throw new NotFoundException(`User ${id} not found`);
+    try {
+      return await this.prisma.user.update({
+        where: { id },
+        data: { role },
+        select: safeSelect,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`User ${id} not found`);
+      }
+      throw error;
     }
-
-    return user;
   }
 
   async remove(id: string): Promise<SafeUser> {
-    const [user] = await this.db
-      .delete(users)
-      .where(eq(users.id, id))
-      .returning(safeColumns);
-
-    if (!user) {
-      throw new NotFoundException(`User ${id} not found`);
+    try {
+      return await this.prisma.user.delete({
+        where: { id },
+        select: safeSelect,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`User ${id} not found`);
+      }
+      throw error;
     }
-
-    return user;
   }
 }

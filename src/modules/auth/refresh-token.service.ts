@@ -2,10 +2,8 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, eq, isNull } from 'drizzle-orm';
 import { generateToken, hashToken } from '@/common/utils/token-hash.util';
-import { DatabaseService } from '@/database/database.service';
-import { refreshTokens } from '@/database/schema';
+import { PrismaService } from '@/database/prisma.service';
 
 interface IssuedToken {
   token: string;
@@ -30,13 +28,9 @@ export class RefreshTokenService {
   private readonly logger = new Logger(RefreshTokenService.name);
 
   constructor(
-    private readonly databaseService: DatabaseService,
+    private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {}
-
-  private get db() {
-    return this.databaseService.db;
-  }
 
   private get ttlMs(): number {
     return (
@@ -48,10 +42,8 @@ export class RefreshTokenService {
     const token = generateToken();
     const expiresAt = new Date(Date.now() + this.ttlMs);
 
-    await this.db.insert(refreshTokens).values({
-      userId,
-      tokenHash: hashToken(token),
-      expiresAt,
+    await this.prisma.refreshToken.create({
+      data: { userId, tokenHash: hashToken(token), expiresAt },
     });
 
     return { token, expiresAt };
@@ -60,11 +52,9 @@ export class RefreshTokenService {
   async rotate(rawToken: string): Promise<RotatedToken | null> {
     const tokenHash = hashToken(rawToken);
 
-    const [existing] = await this.db
-      .select()
-      .from(refreshTokens)
-      .where(eq(refreshTokens.tokenHash, tokenHash))
-      .limit(1);
+    const existing = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash },
+    });
 
     if (!existing) {
       return null;
@@ -79,10 +69,10 @@ export class RefreshTokenService {
       return null;
     }
 
-    await this.db
-      .update(refreshTokens)
-      .set({ revokedAt: new Date() })
-      .where(eq(refreshTokens.id, existing.id));
+    await this.prisma.refreshToken.update({
+      where: { id: existing.id },
+      data: { revokedAt: new Date() },
+    });
 
     const next = await this.issue(existing.userId);
     return { ...next, userId: existing.userId };
@@ -90,25 +80,17 @@ export class RefreshTokenService {
 
   /** Used by /auth/logout — only revokes the token if it actually belongs to the caller. */
   async revokeOwnedByUser(rawToken: string, userId: string): Promise<void> {
-    await this.db
-      .update(refreshTokens)
-      .set({ revokedAt: new Date() })
-      .where(
-        and(
-          eq(refreshTokens.tokenHash, hashToken(rawToken)),
-          eq(refreshTokens.userId, userId),
-          isNull(refreshTokens.revokedAt),
-        ),
-      );
+    await this.prisma.refreshToken.updateMany({
+      where: { tokenHash: hashToken(rawToken), userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 
   /** Used after a password change/reset to force re-login on every other device/session. */
   async revokeAllForUser(userId: string): Promise<void> {
-    await this.db
-      .update(refreshTokens)
-      .set({ revokedAt: new Date() })
-      .where(
-        and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)),
-      );
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 }

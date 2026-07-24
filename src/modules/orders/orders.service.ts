@@ -5,30 +5,31 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, inArray, type SQL, sql } from 'drizzle-orm';
 import { NotificationType } from '@/common/enums/notification-type.enum';
 import { OrderStatus } from '@/common/enums/order-status.enum';
+import { ProductStatus } from '@/common/enums/product-status.enum';
 import type { CursorPaginatedResult } from '@/common/interfaces/cursor-paginated-result.interface';
-import { decodeCursor, encodeCursor } from '@/common/utils/cursor.util';
-import { withCursorPagination } from '@/common/utils/cursor-pagination.util';
-import { DatabaseService } from '@/database/database.service';
-import type { DbTransaction } from '@/database/db-transaction.type';
+import { decodeCursor } from '@/common/utils/cursor.util';
 import {
-  addresses,
-  cartItems,
-  carts,
-  type Order,
-  type OrderItem,
-  orderItems,
-  orders,
-  products,
-} from '@/database/schema';
+  toCursorPage,
+  withCursorPagination,
+} from '@/common/utils/cursor-pagination.util';
+import type { DbTransaction } from '@/database/db-transaction.type';
+import { PrismaService } from '@/database/prisma.service';
+import {
+  Prisma,
+  type Order as PrismaOrder,
+  type OrderItem as PrismaOrderItem,
+} from '@/generated/prisma/client';
 import { CouponsService } from '@/modules/coupons/coupons.service';
 import { InventoryService } from '@/modules/inventory/inventory.service';
 import { NotificationsService } from '@/modules/notifications/notifications.service';
 import type { CheckoutDto } from './dto/checkout.dto';
 import type { OrderQueryDto } from './dto/order-query.dto';
-import type { OrderResponseDto } from './dto/order-response.dto';
+import type {
+  OrderResponseDto,
+  ShippingAddressSnapshotDto,
+} from './dto/order-response.dto';
 
 // Which statuses a given status may move to. Anything not listed here
 // (including every terminal state) accepts no further transitions.
@@ -74,18 +75,74 @@ const NOTIFICATION_FOR_STATUS: Partial<
   },
 };
 
+// Order.subtotal/discountAmount/total and OrderItem.unitPrice/taxAmount/
+// lineTotal are Prisma Decimal on read — every internal representation past
+// this point is plain numbers, converted once at the point each row comes
+// back from Prisma Client (toOrderRow/toOrderItemRow) or cast directly to
+// ::float8 in the raw-SQL cursor-pagination path (queryOrders).
+interface OrderRow {
+  id: string;
+  userId: string;
+  status: OrderStatus;
+  subtotal: number;
+  discountAmount: number;
+  couponCode: string | null;
+  shippingAddress: Prisma.JsonValue;
+  total: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface OrderItemRow {
+  id: string;
+  orderId: string;
+  productId: string;
+  productName: string;
+  productSku: string;
+  unitPrice: number;
+  quantity: number;
+  taxAmount: number;
+  lineTotal: number;
+  createdAt: Date;
+}
+
+function toOrderRow(order: PrismaOrder): OrderRow {
+  return {
+    ...order,
+    status: order.status as OrderStatus,
+    subtotal: order.subtotal.toNumber(),
+    discountAmount: order.discountAmount.toNumber(),
+    total: order.total.toNumber(),
+  };
+}
+
+function toOrderItemRow(item: PrismaOrderItem): OrderItemRow {
+  return {
+    ...item,
+    unitPrice: item.unitPrice.toNumber(),
+    taxAmount: item.taxAmount.toNumber(),
+    lineTotal: item.lineTotal.toNumber(),
+  };
+}
+
+const ORDER_COLUMNS_SQL = Prisma.sql`
+  id, user_id AS "userId", status,
+  subtotal::float8 AS subtotal,
+  discount_amount::float8 AS "discountAmount",
+  coupon_code AS "couponCode",
+  shipping_address AS "shippingAddress",
+  total::float8 AS total,
+  created_at AS "createdAt", updated_at AS "updatedAt"
+`;
+
 @Injectable()
 export class OrdersService {
   constructor(
-    private readonly databaseService: DatabaseService,
+    private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
     private readonly couponsService: CouponsService,
     private readonly notificationsService: NotificationsService,
   ) {}
-
-  private get db() {
-    return this.databaseService.db;
-  }
 
   /**
    * The checkout transaction — the PRD's "learn transactions" showcase.
@@ -95,46 +152,44 @@ export class OrdersService {
    * this same call) rolls back automatically.
    */
   async checkout(userId: string, dto: CheckoutDto): Promise<OrderResponseDto> {
-    const order = await this.db.transaction(async (tx) => {
-      const [cart] = await tx
-        .select()
-        .from(carts)
-        .where(eq(carts.userId, userId))
-        .limit(1);
-
-      const items = cart
-        ? await tx
-            .select({
-              productId: cartItems.productId,
-              quantity: cartItems.quantity,
-              priceSnapshot: cartItems.priceSnapshot,
-              productName: products.name,
-              productSku: products.sku,
-              productStatus: products.status,
-            })
-            .from(cartItems)
-            .innerJoin(products, eq(cartItems.productId, products.id))
-            .where(eq(cartItems.cartId, cart.id))
-        : [];
-
-      if (items.length === 0) {
+    const order = await this.prisma.$transaction(async (tx) => {
+      const cart = await tx.cart.findUnique({ where: { userId } });
+      if (!cart) {
         throw new BadRequestException('Your cart is empty');
       }
 
-      const unavailable = items.find((item) => item.productStatus !== 'active');
+      const cartItems = await tx.cartItem.findMany({
+        where: { cartId: cart.id },
+        include: {
+          product: { select: { name: true, sku: true, status: true } },
+        },
+      });
+
+      if (cartItems.length === 0) {
+        throw new BadRequestException('Your cart is empty');
+      }
+
+      const items = cartItems.map((row) => ({
+        productId: row.productId,
+        quantity: row.quantity,
+        priceSnapshot: row.priceSnapshot.toNumber(),
+        productName: row.product.name,
+        productSku: row.product.sku,
+        productStatus: row.product.status,
+      }));
+
+      const unavailable = items.find(
+        (item) => item.productStatus !== ProductStatus.Active,
+      );
       if (unavailable) {
         throw new BadRequestException(
           `"${unavailable.productName}" is no longer available`,
         );
       }
 
-      const [address] = await tx
-        .select()
-        .from(addresses)
-        .where(
-          and(eq(addresses.id, dto.addressId), eq(addresses.userId, userId)),
-        )
-        .limit(1);
+      const address = await tx.address.findFirst({
+        where: { id: dto.addressId, userId },
+      });
 
       if (!address) {
         throw new NotFoundException(`Address ${dto.addressId} not found`);
@@ -169,13 +224,14 @@ export class OrdersService {
       // migrations directory), not application code re-implementing the
       // same arithmetic — GREATEST(...) there guards against a total
       // going negative if a discount ever exceeded the subtotal.
-      const [{ total }] = await tx.execute<{ total: number }>(
-        sql`SELECT calculate_order_total(${subtotal}, ${discountAmount}) AS total`,
-      );
+      const [{ total }] = await tx.$queryRaw<
+        Array<{ total: number }>
+      >(Prisma.sql`
+        SELECT calculate_order_total(${subtotal}, ${discountAmount})::float8 AS total
+      `);
 
-      const [createdOrder] = await tx
-        .insert(orders)
-        .values({
+      const createdOrder = await tx.order.create({
+        data: {
           userId,
           subtotal,
           discountAmount,
@@ -188,11 +244,11 @@ export class OrdersService {
             country: address.country,
           },
           total,
-        })
-        .returning();
+        },
+      });
 
-      await tx.insert(orderItems).values(
-        items.map((item) => ({
+      await tx.orderItem.createMany({
+        data: items.map((item) => ({
           orderId: createdOrder.id,
           productId: item.productId,
           productName: item.productName,
@@ -202,11 +258,11 @@ export class OrdersService {
           taxAmount: 0,
           lineTotal: Math.round(item.quantity * item.priceSnapshot * 100) / 100,
         })),
-      );
+      });
 
-      await tx.delete(cartItems).where(eq(cartItems.cartId, cart.id));
+      await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
-      return createdOrder;
+      return toOrderRow(createdOrder);
     });
 
     return this.toResponse(order, await this.getItems(order.id));
@@ -216,7 +272,7 @@ export class OrdersService {
     userId: string,
     query: OrderQueryDto,
   ): Promise<CursorPaginatedResult<OrderResponseDto>> {
-    return this.queryOrders(query, eq(orders.userId, userId));
+    return this.queryOrders(query, Prisma.sql`user_id = ${userId}`);
   }
 
   findAllAdmin(
@@ -225,15 +281,21 @@ export class OrdersService {
     return this.queryOrders(query, undefined);
   }
 
-  findOneForUser(userId: string, orderId: string): Promise<OrderResponseDto> {
-    return this.findOneWhere(
-      and(eq(orders.id, orderId), eq(orders.userId, userId)),
-      orderId,
-    );
+  async findOneForUser(
+    userId: string,
+    orderId: string,
+  ): Promise<OrderResponseDto> {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
+    });
+    return this.toResponseOrThrow(order, orderId);
   }
 
-  findOneAdmin(orderId: string): Promise<OrderResponseDto> {
-    return this.findOneWhere(eq(orders.id, orderId), orderId);
+  async findOneAdmin(orderId: string): Promise<OrderResponseDto> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+    return this.toResponseOrThrow(order, orderId);
   }
 
   /** Customer self-service cancel — only while still pending; anything further along goes through admin's full state machine. */
@@ -241,12 +303,10 @@ export class OrdersService {
     userId: string,
     orderId: string,
   ): Promise<OrderResponseDto> {
-    return this.db.transaction(async (tx) => {
-      const [order] = await tx
-        .select()
-        .from(orders)
-        .where(and(eq(orders.id, orderId), eq(orders.userId, userId)))
-        .limit(1);
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: { id: orderId, userId },
+      });
 
       if (!order) {
         throw new NotFoundException(`Order ${orderId} not found`);
@@ -258,7 +318,11 @@ export class OrdersService {
         );
       }
 
-      return this.transitionStatus(tx, order, OrderStatus.Cancelled);
+      return this.transitionStatus(
+        tx,
+        toOrderRow(order),
+        OrderStatus.Cancelled,
+      );
     });
   }
 
@@ -266,7 +330,7 @@ export class OrdersService {
     orderId: string,
     status: OrderStatus,
   ): Promise<OrderResponseDto> {
-    return this.db.transaction((tx) =>
+    return this.prisma.$transaction((tx) =>
       this.updateStatusWithTx(tx, orderId, status),
     );
   }
@@ -284,22 +348,18 @@ export class OrdersService {
     orderId: string,
     status: OrderStatus,
   ): Promise<OrderResponseDto> {
-    const [order] = await tx
-      .select()
-      .from(orders)
-      .where(eq(orders.id, orderId))
-      .limit(1);
+    const order = await tx.order.findUnique({ where: { id: orderId } });
 
     if (!order) {
       throw new NotFoundException(`Order ${orderId} not found`);
     }
 
-    return this.transitionStatus(tx, order, status);
+    return this.transitionStatus(tx, toOrderRow(order), status);
   }
 
   private async transitionStatus(
     tx: DbTransaction,
-    order: Order,
+    order: OrderRow,
     status: OrderStatus,
   ): Promise<OrderResponseDto> {
     const allowed = ALLOWED_TRANSITIONS[order.status];
@@ -309,10 +369,9 @@ export class OrdersService {
       );
     }
 
-    const items = await tx
-      .select()
-      .from(orderItems)
-      .where(eq(orderItems.orderId, order.id));
+    const items = (
+      await tx.orderItem.findMany({ where: { orderId: order.id } })
+    ).map(toOrderItemRow);
 
     if (status === OrderStatus.Paid && order.status === OrderStatus.Pending) {
       for (const item of items) {
@@ -329,11 +388,9 @@ export class OrdersService {
       }
     }
 
-    const [updated] = await tx
-      .update(orders)
-      .set({ status })
-      .where(eq(orders.id, order.id))
-      .returning();
+    const updated = toOrderRow(
+      await tx.order.update({ where: { id: order.id }, data: { status } }),
+    );
 
     await this.notifyStatusChange(tx, updated);
 
@@ -342,7 +399,7 @@ export class OrdersService {
 
   private async notifyStatusChange(
     tx: DbTransaction,
-    order: Order,
+    order: OrderRow,
   ): Promise<void> {
     const notification = NOTIFICATION_FOR_STATUS[order.status];
     if (!notification) {
@@ -362,7 +419,7 @@ export class OrdersService {
 
   private async queryOrders(
     query: OrderQueryDto,
-    scopeWhere: SQL | undefined,
+    scopeWhere: Prisma.Sql | undefined,
   ): Promise<CursorPaginatedResult<OrderResponseDto>> {
     const { limit, cursor, status } = query;
 
@@ -373,77 +430,79 @@ export class OrdersService {
       typeof rawCreatedAt === 'string' ? new Date(rawCreatedAt) : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const statusWhere = status ? eq(orders.status, status) : undefined;
-    const where =
+    const statusWhere = status ? Prisma.sql`status = ${status}` : undefined;
+    const baseWhere =
       scopeWhere && statusWhere
-        ? and(scopeWhere, statusWhere)
+        ? Prisma.sql`${scopeWhere} AND ${statusWhere}`
         : (scopeWhere ?? statusWhere);
 
-    const pagination = withCursorPagination({
+    const {
       where,
+      orderBy,
+      limit: lim,
+    } = withCursorPagination({
+      where: baseWhere,
       limit: limit + 1,
       cursors: [
-        [orders.createdAt, 'desc', createdAtCursor],
-        [orders.id, 'asc', idCursor],
+        ['created_at', 'desc', createdAtCursor],
+        ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.db
-      .select()
-      .from(orders)
-      .where(pagination.where)
-      .orderBy(...pagination.orderBy)
-      .limit(pagination.limit);
+    const rows = await this.prisma.$queryRaw<OrderRow[]>(Prisma.sql`
+      SELECT ${ORDER_COLUMNS_SQL}
+      FROM orders
+      WHERE ${where}
+      ORDER BY ${orderBy}
+      LIMIT ${lim}
+    `);
 
-    const hasNextPage = rows.length > limit;
-    const pageRows = hasNextPage ? rows.slice(0, limit) : rows;
-    const last = pageRows.at(-1);
-    const nextCursor =
-      hasNextPage && last ? encodeCursor(last.createdAt, last.id) : null;
+    const page = toCursorPage(rows, limit, (last) => [last.createdAt, last.id]);
 
     const itemsByOrder = await this.getItemsForOrders(
-      pageRows.map((order) => order.id),
-    );
-    const data = pageRows.map((order) =>
-      this.toResponse(order, itemsByOrder.get(order.id) ?? []),
+      page.data.map((order) => order.id),
     );
 
-    return { data, meta: { limit, hasNextPage, nextCursor } };
+    return {
+      ...page,
+      data: page.data.map((order) =>
+        this.toResponse(order, itemsByOrder.get(order.id) ?? []),
+      ),
+    };
   }
 
-  private async findOneWhere(
-    where: SQL | undefined,
+  private async toResponseOrThrow(
+    order: PrismaOrder | null,
     orderId: string,
   ): Promise<OrderResponseDto> {
-    const [order] = await this.db.select().from(orders).where(where).limit(1);
-
     if (!order) {
       throw new NotFoundException(`Order ${orderId} not found`);
     }
 
-    return this.toResponse(order, await this.getItems(order.id));
+    const row = toOrderRow(order);
+    return this.toResponse(row, await this.getItems(row.id));
   }
 
-  private getItems(orderId: string): Promise<OrderItem[]> {
-    return this.db
-      .select()
-      .from(orderItems)
-      .where(eq(orderItems.orderId, orderId));
+  private async getItems(orderId: string): Promise<OrderItemRow[]> {
+    return (await this.prisma.orderItem.findMany({ where: { orderId } })).map(
+      toOrderItemRow,
+    );
   }
 
   private async getItemsForOrders(
     orderIds: string[],
-  ): Promise<Map<string, OrderItem[]>> {
+  ): Promise<Map<string, OrderItemRow[]>> {
     if (orderIds.length === 0) {
       return new Map();
     }
 
-    const rows = await this.db
-      .select()
-      .from(orderItems)
-      .where(inArray(orderItems.orderId, orderIds));
+    const rows = (
+      await this.prisma.orderItem.findMany({
+        where: { orderId: { in: orderIds } },
+      })
+    ).map(toOrderItemRow);
 
-    const map = new Map<string, OrderItem[]>();
+    const map = new Map<string, OrderItemRow[]>();
     for (const row of rows) {
       const bucket = map.get(row.orderId) ?? [];
       bucket.push(row);
@@ -452,14 +511,18 @@ export class OrdersService {
     return map;
   }
 
-  private toResponse(order: Order, items: OrderItem[]): OrderResponseDto {
+  private toResponse(order: OrderRow, items: OrderItemRow[]): OrderResponseDto {
     return {
       id: order.id,
       status: order.status,
       subtotal: order.subtotal,
       discountAmount: order.discountAmount,
       couponCode: order.couponCode,
-      shippingAddress: order.shippingAddress,
+      // Written only by checkout() as {street, city, state, postalCode,
+      // country} (see the shippingAddress snapshot in checkout()) — Prisma
+      // types the column as generic JSON, so the shape isn't visible here.
+      shippingAddress:
+        order.shippingAddress as unknown as ShippingAddressSnapshotDto,
       total: order.total,
       items,
       createdAt: order.createdAt.toISOString(),

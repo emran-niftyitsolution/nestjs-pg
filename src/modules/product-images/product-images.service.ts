@@ -1,9 +1,8 @@
 // src/modules/product-images/product-images.service.ts
 
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, eq } from 'drizzle-orm';
-import { DatabaseService } from '@/database/database.service';
-import { type ProductImage, productImages } from '@/database/schema';
+import { PrismaService } from '@/database/prisma.service';
+import { Prisma, type ProductImage } from '@/generated/prisma/client';
 import { ProductsService } from '@/modules/products/products.service';
 import type { CreateProductImageDto } from './dto/create-product-image.dto';
 import type { UpdateProductImageDto } from './dto/update-product-image.dto';
@@ -11,13 +10,9 @@ import type { UpdateProductImageDto } from './dto/update-product-image.dto';
 @Injectable()
 export class ProductImagesService {
   constructor(
-    private readonly databaseService: DatabaseService,
+    private readonly prisma: PrismaService,
     private readonly productsService: ProductsService,
   ) {}
-
-  private get db() {
-    return this.databaseService.db;
-  }
 
   /** Public gallery — only for a product customers can actually see. */
   async findAllPublic(productId: string): Promise<ProductImage[]> {
@@ -37,17 +32,14 @@ export class ProductImagesService {
   ): Promise<ProductImage> {
     await this.productsService.findOneAdmin(productId);
 
-    const [image] = await this.db
-      .insert(productImages)
-      .values({
+    return this.prisma.productImage.create({
+      data: {
         productId,
         url: dto.url,
         altText: dto.altText,
         sortOrder: dto.sortOrder ?? 0,
-      })
-      .returning();
-
-    return image;
+      },
+    });
   }
 
   async update(
@@ -55,53 +47,46 @@ export class ProductImagesService {
     imageId: string,
     dto: UpdateProductImageDto,
   ): Promise<ProductImage> {
-    const [image] = await this.db
-      .update(productImages)
-      .set(dto)
-      .where(
-        and(
-          eq(productImages.id, imageId),
-          eq(productImages.productId, productId),
-        ),
-      )
-      .returning();
+    const { count } = await this.prisma.productImage.updateMany({
+      where: { id: imageId, productId },
+      data: dto,
+    });
 
-    if (!image) {
+    if (count === 0) {
       throw new NotFoundException(
         `Image ${imageId} not found on product ${productId}`,
       );
     }
 
-    return image;
+    return this.prisma.productImage.findUniqueOrThrow({
+      where: { id: imageId },
+    });
   }
 
   async remove(productId: string, imageId: string): Promise<ProductImage> {
-    const [image] = await this.db
-      .delete(productImages)
-      .where(
-        and(
-          eq(productImages.id, imageId),
-          eq(productImages.productId, productId),
-        ),
-      )
-      .returning();
-
-    if (!image) {
-      throw new NotFoundException(
-        `Image ${imageId} not found on product ${productId}`,
-      );
+    try {
+      return await this.prisma.productImage.delete({
+        where: { id: imageId, productId },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(
+          `Image ${imageId} not found on product ${productId}`,
+        );
+      }
+      throw error;
     }
-
-    return image;
   }
 
   private listImages(productId: string): Promise<ProductImage[]> {
     // A handful of images per product at most — a plain ordered list is
     // simpler and cheaper here than adding cursor pagination for no benefit.
-    return this.db
-      .select()
-      .from(productImages)
-      .where(eq(productImages.productId, productId))
-      .orderBy(asc(productImages.sortOrder), asc(productImages.createdAt));
+    return this.prisma.productImage.findMany({
+      where: { productId },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    });
   }
 }

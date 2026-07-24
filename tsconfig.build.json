@@ -8,7 +8,6 @@
     "test",
     "dist",
     "**/*spec.ts",
-    "drizzle.config.ts",
     "prisma.config.ts"
   ]
 }

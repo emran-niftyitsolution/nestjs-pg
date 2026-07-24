@@ -6,19 +6,21 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, type SQL, sql } from 'drizzle-orm';
 import { ProductSort } from '@/common/enums/product-sort.enum';
 import { ProductStatus } from '@/common/enums/product-status.enum';
 import type { CursorPaginatedResult } from '@/common/interfaces/cursor-paginated-result.interface';
-import { decodeCursor, encodeCursor } from '@/common/utils/cursor.util';
-import { withCursorPagination } from '@/common/utils/cursor-pagination.util';
+import { decodeCursor } from '@/common/utils/cursor.util';
+import {
+  toCursorPage,
+  withCursorPagination,
+} from '@/common/utils/cursor-pagination.util';
 import {
   isForeignKeyViolation,
   isUniqueViolation,
 } from '@/common/utils/postgres-error.util';
 import { slugify } from '@/common/utils/slugify.util';
-import { DatabaseService } from '@/database/database.service';
-import { brands, categories, products } from '@/database/schema';
+import { PrismaService } from '@/database/prisma.service';
+import { Prisma, type Product } from '@/generated/prisma/client';
 import type { AdminProductQueryDto } from './dto/admin-product-query.dto';
 import type { CreateProductDto } from './dto/create-product.dto';
 import type { ProductQueryDto } from './dto/product-query.dto';
@@ -28,49 +30,54 @@ import type { UpdateProductDto } from './dto/update-product.dto';
 // `searchProducts`), so they're capped at a single bounded page.
 const SEARCH_RESULT_LIMIT = 50;
 
-// The generated `searchVector` tsvector is an internal indexing detail, not
-// part of the public API shape — select everything except it, everywhere,
-// rather than fetching it and stripping it back out on every response.
-const productColumns = {
-  id: products.id,
-  name: products.name,
-  slug: products.slug,
-  description: products.description,
-  sku: products.sku,
-  price: products.price,
-  discountPercentage: products.discountPercentage,
-  stock: products.stock,
-  weightKg: products.weightKg,
-  dimensionsCm: products.dimensionsCm,
-  specifications: products.specifications,
-  categoryId: products.categoryId,
-  brandId: products.brandId,
-  status: products.status,
-  createdAt: products.createdAt,
-  updatedAt: products.updatedAt,
-} as const;
-
-export type SafeProduct = Omit<typeof products.$inferSelect, 'searchVector'>;
+// The generated `searchVector` tsvector is `Unsupported` in schema.prisma,
+// so it's already excluded from the generated Product type — nothing to
+// strip here, unlike the old `$inferSelect` Drizzle type.
+// Product.price/weightKg are Prisma Decimal on read — the API contract is
+// plain numbers, converted once at this boundary (toSafeProduct) or cast
+// directly to ::float8 in the raw-SQL list/search paths below.
+export type SafeProduct = Omit<Product, 'price' | 'weightKg'> & {
+  price: number;
+  weightKg: number | null;
+};
 
 export interface ProductWithFinalPrice extends SafeProduct {
   finalPrice: number;
 }
 
+function toSafeProduct(product: Product): SafeProduct {
+  return {
+    ...product,
+    price: product.price.toNumber(),
+    weightKg: product.weightKg ? product.weightKg.toNumber() : null,
+  };
+}
+
+const PRODUCT_COLUMNS_SQL = Prisma.sql`
+  id, name, slug, description, sku,
+  price::float8 AS price,
+  discount_percentage AS "discountPercentage",
+  stock,
+  weight_kg::float8 AS "weightKg",
+  dimensions_cm AS "dimensionsCm",
+  specifications,
+  category_id AS "categoryId",
+  brand_id AS "brandId",
+  status,
+  created_at AS "createdAt",
+  updated_at AS "updatedAt"
+`;
+
 @Injectable()
 export class ProductsService {
-  constructor(private readonly databaseService: DatabaseService) {}
-
-  private get db() {
-    return this.databaseService.db;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateProductDto): Promise<ProductWithFinalPrice> {
     const slug = dto.slug ?? slugify(dto.name);
 
     try {
-      const [product] = await this.db
-        .insert(products)
-        .values({
+      const product = await this.prisma.product.create({
+        data: {
           name: dto.name,
           slug,
           description: dto.description,
@@ -80,14 +87,14 @@ export class ProductsService {
           stock: dto.stock ?? 0,
           weightKg: dto.weightKg,
           dimensionsCm: dto.dimensionsCm,
-          specifications: dto.specifications ?? {},
+          specifications: (dto.specifications ?? {}) as Prisma.InputJsonValue,
           categoryId: dto.categoryId,
           brandId: dto.brandId,
           status: dto.status ?? ProductStatus.Draft,
-        })
-        .returning(productColumns);
+        },
+      });
 
-      return this.withFinalPrice(product);
+      return this.withFinalPrice(toSafeProduct(product));
     } catch (error) {
       throw this.mapWriteError(error);
     }
@@ -108,30 +115,27 @@ export class ProductsService {
   }
 
   async findOnePublic(id: string): Promise<ProductWithFinalPrice> {
-    return this.findOneWhere(
-      and(eq(products.id, id), eq(products.status, ProductStatus.Active)),
-      id,
-    );
+    const product = await this.prisma.product.findFirst({
+      where: { id, status: ProductStatus.Active },
+    });
+    return this.toResponseOrThrow(product, id);
   }
 
   async findOneAdmin(id: string): Promise<ProductWithFinalPrice> {
-    return this.findOneWhere(eq(products.id, id), id);
+    const product = await this.prisma.product.findUnique({ where: { id } });
+    return this.toResponseOrThrow(product, id);
   }
 
   async findBySlugPublic(slug: string): Promise<ProductWithFinalPrice> {
-    const [product] = await this.db
-      .select(productColumns)
-      .from(products)
-      .where(
-        and(eq(products.slug, slug), eq(products.status, ProductStatus.Active)),
-      )
-      .limit(1);
+    const product = await this.prisma.product.findFirst({
+      where: { slug, status: ProductStatus.Active },
+    });
 
     if (!product) {
       throw new NotFoundException(`Product "${slug}" not found`);
     }
 
-    return this.withFinalPrice(product);
+    return this.withFinalPrice(toSafeProduct(product));
   }
 
   async update(
@@ -139,33 +143,36 @@ export class ProductsService {
     dto: UpdateProductDto,
   ): Promise<ProductWithFinalPrice> {
     try {
-      const [product] = await this.db
-        .update(products)
-        .set(dto)
-        .where(eq(products.id, id))
-        .returning(productColumns);
+      const product = await this.prisma.product.update({
+        where: { id },
+        data: dto as Prisma.ProductUncheckedUpdateInput,
+      });
 
-      if (!product) {
+      return this.withFinalPrice(toSafeProduct(product));
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
         throw new NotFoundException(`Product ${id} not found`);
       }
-
-      return this.withFinalPrice(product);
-    } catch (error) {
       throw this.mapWriteError(error);
     }
   }
 
   async remove(id: string): Promise<ProductWithFinalPrice> {
-    const [product] = await this.db
-      .delete(products)
-      .where(eq(products.id, id))
-      .returning(productColumns);
-
-    if (!product) {
-      throw new NotFoundException(`Product ${id} not found`);
+    try {
+      const product = await this.prisma.product.delete({ where: { id } });
+      return this.withFinalPrice(toSafeProduct(product));
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Product ${id} not found`);
+      }
+      throw error;
     }
-
-    return this.withFinalPrice(product);
   }
 
   private mapWriteError(error: unknown): Error {
@@ -180,21 +187,15 @@ export class ProductsService {
     return error as Error;
   }
 
-  private async findOneWhere(
-    where: SQL | undefined,
+  private async toResponseOrThrow(
+    product: Product | null,
     id: string,
   ): Promise<ProductWithFinalPrice> {
-    const [product] = await this.db
-      .select(productColumns)
-      .from(products)
-      .where(where)
-      .limit(1);
-
     if (!product) {
       throw new NotFoundException(`Product ${id} not found`);
     }
 
-    return this.withFinalPrice(product);
+    return this.withFinalPrice(toSafeProduct(product));
   }
 
   private async queryProducts(
@@ -210,21 +211,27 @@ export class ProductsService {
       sort = ProductSort.Newest,
     } = query;
 
-    const conditions: SQL[] = [];
+    const conditions: Prisma.Sql[] = [];
     if (forcedStatus) {
-      conditions.push(eq(products.status, forcedStatus));
+      conditions.push(Prisma.sql`status = ${forcedStatus}`);
     }
 
     if (category) {
-      const categoryId = await this.resolveSlugId(categories, category);
-      if (!categoryId) return this.emptyPage(limit);
-      conditions.push(eq(products.categoryId, categoryId));
+      const found = await this.prisma.category.findUnique({
+        where: { slug: category },
+        select: { id: true },
+      });
+      if (!found) return this.emptyPage(limit);
+      conditions.push(Prisma.sql`category_id = ${found.id}`);
     }
 
     if (brand) {
-      const brandId = await this.resolveSlugId(brands, brand);
-      if (!brandId) return this.emptyPage(limit);
-      conditions.push(eq(products.brandId, brandId));
+      const found = await this.prisma.brand.findUnique({
+        where: { slug: brand },
+        select: { id: true },
+      });
+      if (!found) return this.emptyPage(limit);
+      conditions.push(Prisma.sql`brand_id = ${found.id}`);
     }
 
     if (search) {
@@ -232,19 +239,6 @@ export class ProductsService {
     }
 
     return this.paginateProducts(sort, conditions, limit, cursor);
-  }
-
-  private async resolveSlugId(
-    table: typeof categories | typeof brands,
-    slug: string,
-  ): Promise<string | null> {
-    const [row] = await this.db
-      .select({ id: table.id })
-      .from(table)
-      .where(eq(table.slug, slug))
-      .limit(1);
-
-    return row?.id ?? null;
   }
 
   private emptyPage(
@@ -255,27 +249,32 @@ export class ProductsService {
 
   /**
    * Relevance ranking (ts_rank) isn't a stored column, so it can't be a
-   * keyset cursor field — drizzle-pagination's cursors must be real table
-   * columns. Rather than fake pagination over an unstable rank, search
-   * results are a single bounded page. Deep pagination of ranked
-   * full-text search is a deliberate limitation here; production search
-   * at real scale reaches for dedicated infra (Elasticsearch, Algolia)
-   * instead of stretching Postgres full-text search that far.
+   * keyset cursor field — and `search_vector` is `Unsupported` in
+   * schema.prisma, invisible to Prisma Client reads either way — so this
+   * runs as one raw query, ranked and ordered entirely in SQL. Rather than
+   * fake pagination over an unstable rank, search results are a single
+   * bounded page. Deep pagination of ranked full-text search is a
+   * deliberate limitation here; production search at real scale reaches
+   * for dedicated infra (Elasticsearch, Algolia) instead of stretching
+   * Postgres full-text search that far.
    */
   private async searchProducts(
     search: string,
-    conditions: SQL[],
+    conditions: Prisma.Sql[],
     limit: number,
   ): Promise<CursorPaginatedResult<ProductWithFinalPrice>> {
-    const tsQuery = sql`websearch_to_tsquery('english', ${search})`;
-    const rank = sql`ts_rank(${products.searchVector}, ${tsQuery})`;
+    const tsQuery = Prisma.sql`websearch_to_tsquery('english', ${search})`;
+    const whereSql = conditions.length
+      ? Prisma.sql`${Prisma.join(conditions, ' AND ')} AND search_vector @@ ${tsQuery}`
+      : Prisma.sql`search_vector @@ ${tsQuery}`;
 
-    const rows = await this.db
-      .select(productColumns)
-      .from(products)
-      .where(and(...conditions, sql`${products.searchVector} @@ ${tsQuery}`))
-      .orderBy(sql`${rank} desc`, products.id)
-      .limit(Math.min(limit, SEARCH_RESULT_LIMIT));
+    const rows = await this.prisma.$queryRaw<SafeProduct[]>(Prisma.sql`
+      SELECT ${PRODUCT_COLUMNS_SQL}
+      FROM products
+      WHERE ${whereSql}
+      ORDER BY ts_rank(search_vector, ${tsQuery}) DESC, id ASC
+      LIMIT ${Math.min(limit, SEARCH_RESULT_LIMIT)}
+    `);
 
     return {
       data: rows.map((row) => this.withFinalPrice(row)),
@@ -285,7 +284,7 @@ export class ProductsService {
 
   private async paginateProducts(
     sort: ProductSort,
-    conditions: SQL[],
+    conditions: Prisma.Sql[],
     limit: number,
     cursor?: string,
   ): Promise<CursorPaginatedResult<ProductWithFinalPrice>> {
@@ -303,8 +302,9 @@ export class ProductsService {
     }
 
     const isPriceSort = sort !== ProductSort.Newest;
-    const primaryColumn = isPriceSort ? products.price : products.createdAt;
-    const primaryOrder = sort === ProductSort.PriceAsc ? 'asc' : 'desc';
+    const primaryColumn = isPriceSort ? 'price' : 'created_at';
+    const primaryOrder: 'asc' | 'desc' =
+      sort === ProductSort.PriceAsc ? 'asc' : 'desc';
     const primaryCursor = isPriceSort
       ? typeof rawPrimary === 'number'
         ? rawPrimary
@@ -314,33 +314,36 @@ export class ProductsService {
         : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const pagination = withCursorPagination({
-      where: conditions.length ? and(...conditions) : undefined,
+    const {
+      where,
+      orderBy,
+      limit: lim,
+    } = withCursorPagination({
+      where: conditions.length ? Prisma.join(conditions, ' AND ') : undefined,
       limit: limit + 1,
       cursors: [
         [primaryColumn, primaryOrder, primaryCursor],
-        [products.id, 'asc', idCursor],
+        ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.db
-      .select(productColumns)
-      .from(products)
-      .where(pagination.where)
-      .orderBy(...pagination.orderBy)
-      .limit(pagination.limit);
+    const rows = await this.prisma.$queryRaw<SafeProduct[]>(Prisma.sql`
+      SELECT ${PRODUCT_COLUMNS_SQL}
+      FROM products
+      WHERE ${where}
+      ORDER BY ${orderBy}
+      LIMIT ${lim}
+    `);
 
-    const hasNextPage = rows.length > limit;
-    const data = hasNextPage ? rows.slice(0, limit) : rows;
-    const last = data.at(-1);
-    const nextCursor =
-      hasNextPage && last
-        ? encodeCursor(sort, isPriceSort ? last.price : last.createdAt, last.id)
-        : null;
+    const page = toCursorPage(rows, limit, (last) => [
+      sort,
+      isPriceSort ? last.price : last.createdAt,
+      last.id,
+    ]);
 
     return {
-      data: data.map((row) => this.withFinalPrice(row)),
-      meta: { limit, hasNextPage, nextCursor },
+      ...page,
+      data: page.data.map((row) => this.withFinalPrice(row)),
     };
   }
 

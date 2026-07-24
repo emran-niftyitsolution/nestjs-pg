@@ -2,10 +2,8 @@
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { eq } from 'drizzle-orm';
 import { generateToken, hashToken } from '@/common/utils/token-hash.util';
-import { DatabaseService } from '@/database/database.service';
-import { passwordResetTokens } from '@/database/schema';
+import { PrismaService } from '@/database/prisma.service';
 
 interface IssuedResetToken {
   token: string;
@@ -17,13 +15,9 @@ const MS_PER_MINUTE = 60 * 1000;
 @Injectable()
 export class PasswordResetTokenService {
   constructor(
-    private readonly databaseService: DatabaseService,
+    private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {}
-
-  private get db() {
-    return this.databaseService.db;
-  }
 
   async issue(userId: string): Promise<IssuedResetToken> {
     const ttlMs =
@@ -32,10 +26,8 @@ export class PasswordResetTokenService {
     const token = generateToken();
     const expiresAt = new Date(Date.now() + ttlMs);
 
-    await this.db.insert(passwordResetTokens).values({
-      userId,
-      tokenHash: hashToken(token),
-      expiresAt,
+    await this.prisma.passwordResetToken.create({
+      data: { userId, tokenHash: hashToken(token), expiresAt },
     });
 
     return { token, expiresAt };
@@ -45,11 +37,9 @@ export class PasswordResetTokenService {
   async consume(rawToken: string): Promise<string | null> {
     const tokenHash = hashToken(rawToken);
 
-    const [existing] = await this.db
-      .select()
-      .from(passwordResetTokens)
-      .where(eq(passwordResetTokens.tokenHash, tokenHash))
-      .limit(1);
+    const existing = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+    });
 
     if (
       !existing ||
@@ -59,10 +49,10 @@ export class PasswordResetTokenService {
       return null;
     }
 
-    await this.db
-      .update(passwordResetTokens)
-      .set({ usedAt: new Date() })
-      .where(eq(passwordResetTokens.id, existing.id));
+    await this.prisma.passwordResetToken.update({
+      where: { id: existing.id },
+      data: { usedAt: new Date() },
+    });
 
     return existing.userId;
   }

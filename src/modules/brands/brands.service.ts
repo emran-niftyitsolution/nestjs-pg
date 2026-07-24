@@ -5,42 +5,37 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
 import type { CursorPaginatedResult } from '@/common/interfaces/cursor-paginated-result.interface';
-import { decodeCursor, encodeCursor } from '@/common/utils/cursor.util';
-import { withCursorPagination } from '@/common/utils/cursor-pagination.util';
+import { decodeCursor } from '@/common/utils/cursor.util';
+import {
+  toCursorPage,
+  withCursorPagination,
+} from '@/common/utils/cursor-pagination.util';
 import { isUniqueViolation } from '@/common/utils/postgres-error.util';
 import { slugify } from '@/common/utils/slugify.util';
-import { DatabaseService } from '@/database/database.service';
-import { type Brand, brands } from '@/database/schema';
+import { PrismaService } from '@/database/prisma.service';
+import { type Brand, Prisma } from '@/generated/prisma/client';
 import type { BrandQueryDto } from './dto/brand-query.dto';
 import type { CreateBrandDto } from './dto/create-brand.dto';
 import type { UpdateBrandDto } from './dto/update-brand.dto';
 
 @Injectable()
 export class BrandsService {
-  constructor(private readonly databaseService: DatabaseService) {}
-
-  private get db() {
-    return this.databaseService.db;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateBrandDto): Promise<Brand> {
     const slug = dto.slug ?? slugify(dto.name);
 
     try {
-      const [brand] = await this.db
-        .insert(brands)
-        .values({
+      return await this.prisma.brand.create({
+        data: {
           name: dto.name,
           slug,
           description: dto.description,
           logoUrl: dto.logoUrl,
           website: dto.website,
-        })
-        .returning();
-
-      return brand;
+        },
+      });
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException(
@@ -56,7 +51,7 @@ export class BrandsService {
     const { limit, cursor, isActive } = query;
 
     const filterWhere =
-      isActive === undefined ? undefined : eq(brands.isActive, isActive);
+      isActive === undefined ? undefined : Prisma.sql`is_active = ${isActive}`;
 
     const [rawName, rawId] = cursor
       ? decodeCursor(cursor)
@@ -64,37 +59,34 @@ export class BrandsService {
     const nameCursor = typeof rawName === 'string' ? rawName : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const pagination = withCursorPagination({
+    const {
+      where,
+      orderBy,
+      limit: lim,
+    } = withCursorPagination({
       where: filterWhere,
       limit: limit + 1,
       cursors: [
-        [brands.name, 'asc', nameCursor],
-        [brands.id, 'asc', idCursor],
+        ['name', 'asc', nameCursor],
+        ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.db
-      .select()
-      .from(brands)
-      .where(pagination.where)
-      .orderBy(...pagination.orderBy)
-      .limit(pagination.limit);
+    const rows = await this.prisma.$queryRaw<Brand[]>(Prisma.sql`
+      SELECT id, name, slug, description, logo_url AS "logoUrl", website,
+             is_active AS "isActive",
+             created_at AS "createdAt", updated_at AS "updatedAt"
+      FROM brands
+      WHERE ${where}
+      ORDER BY ${orderBy}
+      LIMIT ${lim}
+    `);
 
-    const hasNextPage = rows.length > limit;
-    const data = hasNextPage ? rows.slice(0, limit) : rows;
-    const last = data.at(-1);
-    const nextCursor =
-      hasNextPage && last ? encodeCursor(last.name, last.id) : null;
-
-    return { data, meta: { limit, hasNextPage, nextCursor } };
+    return toCursorPage(rows, limit, (last) => [last.name, last.id]);
   }
 
   async findOne(id: string): Promise<Brand> {
-    const [brand] = await this.db
-      .select()
-      .from(brands)
-      .where(eq(brands.id, id))
-      .limit(1);
+    const brand = await this.prisma.brand.findUnique({ where: { id } });
 
     if (!brand) {
       throw new NotFoundException(`Brand ${id} not found`);
@@ -105,37 +97,34 @@ export class BrandsService {
 
   async update(id: string, dto: UpdateBrandDto): Promise<Brand> {
     try {
-      const [brand] = await this.db
-        .update(brands)
-        .set(dto)
-        .where(eq(brands.id, id))
-        .returning();
-
-      if (!brand) {
-        throw new NotFoundException(`Brand ${id} not found`);
-      }
-
-      return brand;
+      return await this.prisma.brand.update({ where: { id }, data: dto });
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException(
           'A brand with this name or slug already exists',
         );
       }
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Brand ${id} not found`);
+      }
       throw error;
     }
   }
 
   async remove(id: string): Promise<Brand> {
-    const [brand] = await this.db
-      .delete(brands)
-      .where(eq(brands.id, id))
-      .returning();
-
-    if (!brand) {
-      throw new NotFoundException(`Brand ${id} not found`);
+    try {
+      return await this.prisma.brand.delete({ where: { id } });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Brand ${id} not found`);
+      }
+      throw error;
     }
-
-    return brand;
   }
 }

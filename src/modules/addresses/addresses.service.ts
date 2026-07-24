@@ -1,35 +1,27 @@
 // src/modules/addresses/addresses.service.ts
 
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { and, count, desc, eq } from 'drizzle-orm';
-import { DatabaseService } from '@/database/database.service';
 import type { DbTransaction } from '@/database/db-transaction.type';
-import { type Address, addresses } from '@/database/schema';
+import { PrismaService } from '@/database/prisma.service';
+import type { Address } from '@/generated/prisma/client';
 import type { CreateAddressDto } from './dto/create-address.dto';
 import type { UpdateAddressDto } from './dto/update-address.dto';
 
 @Injectable()
 export class AddressesService {
-  constructor(private readonly databaseService: DatabaseService) {}
-
-  private get db() {
-    return this.databaseService.db;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   findAllForUser(userId: string): Promise<Address[]> {
-    return this.db
-      .select()
-      .from(addresses)
-      .where(eq(addresses.userId, userId))
-      .orderBy(desc(addresses.isDefault), desc(addresses.createdAt));
+    return this.prisma.address.findMany({
+      where: { userId },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+    });
   }
 
   async findOne(userId: string, id: string): Promise<Address> {
-    const [address] = await this.db
-      .select()
-      .from(addresses)
-      .where(and(eq(addresses.id, id), eq(addresses.userId, userId)))
-      .limit(1);
+    const address = await this.prisma.address.findFirst({
+      where: { id, userId },
+    });
 
     if (!address) {
       throw new NotFoundException(`Address ${id} not found`);
@@ -39,11 +31,8 @@ export class AddressesService {
   }
 
   async create(userId: string, dto: CreateAddressDto): Promise<Address> {
-    return this.db.transaction(async (tx) => {
-      const [{ total }] = await tx
-        .select({ total: count() })
-        .from(addresses)
-        .where(eq(addresses.userId, userId));
+    return this.prisma.$transaction(async (tx) => {
+      const total = await tx.address.count({ where: { userId } });
 
       // The very first address always becomes the default — there's no
       // sensible "no default address" state for a brand-new user to be in.
@@ -53,9 +42,8 @@ export class AddressesService {
         await this.clearCurrentDefault(tx, userId);
       }
 
-      const [address] = await tx
-        .insert(addresses)
-        .values({
+      return tx.address.create({
+        data: {
           userId,
           street: dto.street,
           city: dto.city,
@@ -63,10 +51,8 @@ export class AddressesService {
           postalCode: dto.postalCode,
           country: dto.country,
           isDefault,
-        })
-        .returning();
-
-      return address;
+        },
+      });
     });
   }
 
@@ -75,70 +61,65 @@ export class AddressesService {
     id: string,
     dto: UpdateAddressDto,
   ): Promise<Address> {
-    return this.db.transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       if (dto.isDefault) {
         await this.clearCurrentDefault(tx, userId);
       }
 
-      const [address] = await tx
-        .update(addresses)
-        .set(dto)
-        .where(and(eq(addresses.id, id), eq(addresses.userId, userId)))
-        .returning();
+      const { count } = await tx.address.updateMany({
+        where: { id, userId },
+        data: dto,
+      });
 
-      if (!address) {
+      if (count === 0) {
         throw new NotFoundException(`Address ${id} not found`);
       }
 
-      return address;
+      return tx.address.findUniqueOrThrow({ where: { id } });
     });
   }
 
   /** Atomically swap the default: clear whichever address holds it, then set this one. */
   async setDefault(userId: string, id: string): Promise<Address> {
-    return this.db.transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       await this.clearCurrentDefault(tx, userId);
 
-      const [address] = await tx
-        .update(addresses)
-        .set({ isDefault: true })
-        .where(and(eq(addresses.id, id), eq(addresses.userId, userId)))
-        .returning();
+      const { count } = await tx.address.updateMany({
+        where: { id, userId },
+        data: { isDefault: true },
+      });
 
-      if (!address) {
+      if (count === 0) {
         throw new NotFoundException(`Address ${id} not found`);
       }
 
-      return address;
+      return tx.address.findUniqueOrThrow({ where: { id } });
     });
   }
 
   async remove(userId: string, id: string): Promise<Address> {
-    return this.db.transaction(async (tx) => {
-      const [deleted] = await tx
-        .delete(addresses)
-        .where(and(eq(addresses.id, id), eq(addresses.userId, userId)))
-        .returning();
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.address.findFirst({ where: { id, userId } });
 
-      if (!deleted) {
+      if (!existing) {
         throw new NotFoundException(`Address ${id} not found`);
       }
+
+      const deleted = await tx.address.delete({ where: { id } });
 
       // Deleting the default address shouldn't silently leave the account
       // without one — promote the most recently added remaining address.
       if (deleted.isDefault) {
-        const [nextDefault] = await tx
-          .select()
-          .from(addresses)
-          .where(eq(addresses.userId, userId))
-          .orderBy(desc(addresses.createdAt))
-          .limit(1);
+        const nextDefault = await tx.address.findFirst({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+        });
 
         if (nextDefault) {
-          await tx
-            .update(addresses)
-            .set({ isDefault: true })
-            .where(eq(addresses.id, nextDefault.id));
+          await tx.address.update({
+            where: { id: nextDefault.id },
+            data: { isDefault: true },
+          });
         }
       }
 
@@ -150,9 +131,9 @@ export class AddressesService {
     tx: DbTransaction,
     userId: string,
   ): Promise<void> {
-    await tx
-      .update(addresses)
-      .set({ isDefault: false })
-      .where(and(eq(addresses.userId, userId), eq(addresses.isDefault, true)));
+    await tx.address.updateMany({
+      where: { userId, isDefault: true },
+      data: { isDefault: false },
+    });
   }
 }

@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { verify as argon2Verify } from 'argon2';
 import { MessageResponseDto } from '@/common/dto/message-response.dto';
 import { NotificationType } from '@/common/enums/notification-type.enum';
+import type { Role } from '@/common/enums/role.enum';
 import { NotificationsService } from '@/modules/notifications/notifications.service';
 import { CreateUserDto } from '@/modules/users/dto/create-user.dto';
 import { SafeUser, UsersService } from '@/modules/users/users.service';
@@ -173,6 +174,7 @@ export class AuthService {
       refreshToken,
       user: {
         ...user,
+        role: user.role as Role,
         createdAt: user.createdAt.toISOString(),
         updatedAt: user.updatedAt.toISOString(),
       },
@@ -183,7 +185,7 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
-      role: user.role,
+      role: user.role as Role,
     };
     return this.jwtService.sign(payload);
   }

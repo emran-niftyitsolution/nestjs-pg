@@ -1,20 +1,10 @@
 // src/modules/dashboard/dashboard.service.ts
 
 import { Injectable } from '@nestjs/common';
-import { count, desc, eq, inArray, lte, sql, sum } from 'drizzle-orm';
 import { OrderStatus } from '@/common/enums/order-status.enum';
 import { Role } from '@/common/enums/role.enum';
-import { DatabaseService } from '@/database/database.service';
-import {
-  bestSellingProductsView,
-  categories,
-  lowStockProductsView,
-  monthlySalesView,
-  orderItems,
-  orders,
-  products,
-  users,
-} from '@/database/schema';
+import { PrismaService } from '@/database/prisma.service';
+import { Prisma } from '@/generated/prisma/client';
 import type { DashboardSummaryResponseDto } from './dto/dashboard-summary-response.dto';
 import type { LowStockProductResponseDto } from './dto/low-stock-product-response.dto';
 import type { MonthlySalesResponseDto } from './dto/monthly-sales-response.dto';
@@ -22,9 +12,9 @@ import type { TopCategoryResponseDto } from './dto/top-category-response.dto';
 import type { TopProductResponseDto } from './dto/top-product-response.dto';
 
 // The same "which orders actually represent revenue" filter as the views
-// (dashboard-views.schema.ts) — repeated here rather than imported because
-// it's an array for `inArray`, not a raw SQL fragment.
-const REVENUE_STATUSES = [
+// (see the baseline migration) — repeated here because it also drives the
+// category-revenue CTE, which has no dedicated view.
+const REVENUE_STATUSES: OrderStatus[] = [
   OrderStatus.Paid,
   OrderStatus.Processing,
   OrderStatus.Shipped,
@@ -32,120 +22,114 @@ const REVENUE_STATUSES = [
   OrderStatus.Refunded,
 ];
 
+interface TopCategoryRow {
+  rank: number;
+  categoryId: string;
+  name: string;
+  unitsSold: number;
+  revenue: number;
+}
+
 @Injectable()
 export class DashboardService {
-  constructor(private readonly databaseService: DatabaseService) {}
-
-  private get db() {
-    return this.databaseService.db;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   /** Three independent aggregates — run as separate queries in parallel rather than joined/CTE'd together, since they don't share a FROM clause. */
   async getSummary(): Promise<DashboardSummaryResponseDto> {
-    const [[orderStats], [productStats], [customerStats]] = await Promise.all([
-      this.db
-        .select({
-          totalOrders: count(),
-          totalRevenue: sum(orders.total),
-        })
-        .from(orders)
-        .where(inArray(orders.status, REVENUE_STATUSES)),
-      this.db.select({ totalProducts: count() }).from(products),
-      this.db
-        .select({ totalCustomers: count() })
-        .from(users)
-        .where(eq(users.role, Role.Customer)),
+    const [orderStats, totalProducts, totalCustomers] = await Promise.all([
+      this.prisma.order.aggregate({
+        where: { status: { in: REVENUE_STATUSES } },
+        _count: true,
+        _sum: { total: true },
+      }),
+      this.prisma.product.count(),
+      this.prisma.user.count({ where: { role: Role.Customer } }),
     ]);
 
     return {
-      totalRevenue: Number(orderStats.totalRevenue),
-      totalOrders: orderStats.totalOrders,
-      totalProducts: productStats.totalProducts,
-      totalCustomers: customerStats.totalCustomers,
+      totalRevenue: orderStats._sum.total?.toNumber() ?? 0,
+      totalOrders: orderStats._count,
+      totalProducts,
+      totalCustomers,
     };
   }
 
   /** Reads from best_selling_products_view; RANK() is applied here rather than baked into the view, since ranking is a presentation concern the view's consumers should get to choose (top 10 vs top 100, etc). */
   async getTopProducts(limit: number): Promise<TopProductResponseDto[]> {
-    return this.db
-      .select({
-        productId: bestSellingProductsView.productId,
-        name: bestSellingProductsView.name,
-        slug: bestSellingProductsView.slug,
-        unitsSold: bestSellingProductsView.unitsSold,
-        revenue: bestSellingProductsView.revenue,
-        rank: sql<number>`rank() over (order by ${bestSellingProductsView.revenue} desc)::int`,
-      })
-      .from(bestSellingProductsView)
-      .orderBy(desc(bestSellingProductsView.revenue))
-      .limit(limit);
+    const rows = await this.prisma.bestSellingProductsView.findMany({
+      orderBy: { revenue: 'desc' },
+      take: limit,
+    });
+
+    return rows.map((row, index) => ({
+      rank: index + 1,
+      productId: row.productId as string,
+      name: row.name as string,
+      slug: row.slug as string,
+      unitsSold: row.unitsSold as number,
+      revenue: row.revenue?.toNumber() ?? 0,
+    }));
   }
 
-  /** No dedicated view for this one — it's a one-off aggregation (categories aren't reported on anywhere else), so a CTE built from the query builder is clearer than a schema object only ever queried from here. */
+  /**
+   * No dedicated view for this one — it's a one-off aggregation
+   * (categories aren't reported on anywhere else). Prisma Client has no
+   * query-builder CTE support, so this runs as one raw query; the `::int`/
+   * `::float8` casts mean the row comes back as plain numbers already, no
+   * `.toNumber()` step needed (unlike the Decimal view reads above).
+   */
   async getTopCategories(limit: number): Promise<TopCategoryResponseDto[]> {
-    const categoryRevenue = this.db.$with('category_revenue').as(
-      this.db
-        .select({
-          categoryId: categories.id,
-          name: categories.name,
-          unitsSold: sql<number>`coalesce(${sum(orderItems.quantity)}, 0)`
-            .mapWith(Number)
-            .as('units_sold'),
-          revenue: sql<number>`coalesce(${sum(orderItems.lineTotal)}, 0)`
-            .mapWith(Number)
-            .as('revenue'),
-        })
-        .from(orderItems)
-        .innerJoin(orders, eq(orders.id, orderItems.orderId))
-        .innerJoin(products, eq(products.id, orderItems.productId))
-        .innerJoin(categories, eq(categories.id, products.categoryId))
-        .where(inArray(orders.status, REVENUE_STATUSES))
-        .groupBy(categories.id, categories.name),
-    );
-
-    return this.db
-      .with(categoryRevenue)
-      .select({
-        rank: sql<number>`rank() over (order by ${categoryRevenue.revenue} desc)::int`,
-        categoryId: categoryRevenue.categoryId,
-        name: categoryRevenue.name,
-        unitsSold: categoryRevenue.unitsSold,
-        revenue: categoryRevenue.revenue,
-      })
-      .from(categoryRevenue)
-      .orderBy(desc(categoryRevenue.revenue))
-      .limit(limit);
+    return this.prisma.$queryRaw<TopCategoryRow[]>(Prisma.sql`
+      WITH category_revenue AS (
+        SELECT
+          c.id AS category_id,
+          c.name AS name,
+          COALESCE(SUM(oi.quantity), 0)::int AS units_sold,
+          COALESCE(SUM(oi.line_total), 0)::float8 AS revenue
+        FROM order_items oi
+        INNER JOIN orders o ON o.id = oi.order_id
+        INNER JOIN products p ON p.id = oi.product_id
+        INNER JOIN categories c ON c.id = p.category_id
+        WHERE o.status::text = ANY(${REVENUE_STATUSES}::text[])
+        GROUP BY c.id, c.name
+      )
+      SELECT
+        rank() OVER (ORDER BY revenue DESC)::int AS rank,
+        category_id AS "categoryId",
+        name,
+        units_sold AS "unitsSold",
+        revenue
+      FROM category_revenue
+      ORDER BY revenue DESC
+      LIMIT ${limit}
+    `);
   }
 
   async getMonthlySales(months: number): Promise<MonthlySalesResponseDto[]> {
-    const rows = await this.db
-      .select({
-        month: monthlySalesView.month,
-        orderCount: monthlySalesView.orderCount,
-        revenue: monthlySalesView.revenue,
-      })
-      .from(monthlySalesView)
-      .orderBy(desc(monthlySalesView.month))
-      .limit(months);
+    const rows = await this.prisma.monthlySalesView.findMany({
+      orderBy: { month: 'desc' },
+      take: months,
+    });
 
     return rows.map((row) => ({
-      month: row.month.toISOString(),
-      orderCount: row.orderCount,
-      revenue: row.revenue,
+      month: (row.month as Date).toISOString(),
+      orderCount: row.orderCount as number,
+      revenue: row.revenue?.toNumber() ?? 0,
     }));
   }
 
   /** The view has no threshold baked in — this is the "WHERE stock <= x" a real table query would also need. */
   async getLowStock(threshold: number): Promise<LowStockProductResponseDto[]> {
-    return this.db
-      .select({
-        id: lowStockProductsView.id,
-        name: lowStockProductsView.name,
-        sku: lowStockProductsView.sku,
-        stock: lowStockProductsView.stock,
-        categoryId: lowStockProductsView.categoryId,
-      })
-      .from(lowStockProductsView)
-      .where(lte(lowStockProductsView.stock, threshold));
+    const rows = await this.prisma.lowStockProductsView.findMany({
+      where: { stock: { lte: threshold } },
+    });
+
+    return rows.map((row) => ({
+      id: row.id as string,
+      name: row.name as string,
+      sku: row.sku as string,
+      stock: row.stock as number,
+      categoryId: row.categoryId,
+    }));
   }
 }

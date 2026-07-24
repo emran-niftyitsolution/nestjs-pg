@@ -9,7 +9,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { validate } from './config/env.validation';
-import { DatabaseModule } from './database/database.module';
 import { PrismaModule } from './database/prisma.module';
 import { HealthModule } from './health/health.module';
 import { AddressesModule } from './modules/addresses/addresses.module';
@@ -44,7 +43,6 @@ import { WishlistModule } from './modules/wishlist/wishlist.module';
       plugins: [ApolloServerPluginLandingPageLocalDefault()],
       context: ({ req }: { req: unknown }) => ({ req }),
     }),
-    DatabaseModule,
     PrismaModule,
     HealthModule,
     UsersModule,

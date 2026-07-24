@@ -8,7 +8,7 @@ import { PrismaService } from '@/database/prisma.service';
 @Injectable()
 export class DatabaseHealthIndicator {
   constructor(
-    private readonly prismaService: PrismaService,
+    private readonly prisma: PrismaService,
     private readonly healthIndicatorService: HealthIndicatorService,
   ) {}
 
@@ -16,7 +16,7 @@ export class DatabaseHealthIndicator {
     const indicator = this.healthIndicatorService.check(key);
 
     try {
-      await this.prismaService.prisma.$queryRaw`select 1`;
+      await this.prisma.$queryRaw`select 1`;
       return indicator.up();
     } catch (error) {
       return indicator.down({

@@ -1,5 +1,8 @@
 // src/common/utils/postgres-error.util.ts
 
+// Note: these codes only apply to errors from normal Prisma Client calls.
+// $queryRaw/$executeRaw failures surface as P2010 ("raw query failed")
+// instead, with the real Postgres SQLSTATE in error.meta.code.
 import { Prisma } from '@/generated/prisma/client';
 
 const UNIQUE_VIOLATION = 'P2002';

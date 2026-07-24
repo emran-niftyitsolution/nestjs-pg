@@ -5,15 +5,17 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
 import { OrderStatus } from '@/common/enums/order-status.enum';
 import { PaymentStatus } from '@/common/enums/payment-status.enum';
 import type { CursorPaginatedResult } from '@/common/interfaces/cursor-paginated-result.interface';
-import { decodeCursor, encodeCursor } from '@/common/utils/cursor.util';
-import { withCursorPagination } from '@/common/utils/cursor-pagination.util';
+import { decodeCursor } from '@/common/utils/cursor.util';
+import {
+  toCursorPage,
+  withCursorPagination,
+} from '@/common/utils/cursor-pagination.util';
 import { isUniqueViolation } from '@/common/utils/postgres-error.util';
-import { DatabaseService } from '@/database/database.service';
-import { orders, type Payment, payments } from '@/database/schema';
+import { PrismaService } from '@/database/prisma.service';
+import { type Payment, Prisma } from '@/generated/prisma/client';
 import { OrdersService } from '@/modules/orders/orders.service';
 import type { CreatePaymentDto } from './dto/create-payment.dto';
 import type { PaymentQueryDto } from './dto/payment-query.dto';
@@ -28,16 +30,27 @@ const ALLOWED_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
   [PaymentStatus.Refunded]: [],
 };
 
+// Payment.amount is Prisma Decimal on read — the API contract is a plain
+// number, converted once at this boundary.
+export type PaymentDto = Omit<Payment, 'amount'> & { amount: number };
+
+function toPaymentDto(payment: Payment): PaymentDto {
+  return { ...payment, amount: payment.amount.toNumber() };
+}
+
+const PAYMENT_COLUMNS_SQL = Prisma.sql`
+  id, order_id AS "orderId", provider, status, amount::float8 AS amount,
+  transaction_reference AS "transactionReference",
+  gateway_response AS "gatewayResponse",
+  created_at AS "createdAt", updated_at AS "updatedAt"
+`;
+
 @Injectable()
 export class PaymentsService {
   constructor(
-    private readonly databaseService: DatabaseService,
+    private readonly prisma: PrismaService,
     private readonly ordersService: OrdersService,
   ) {}
-
-  private get db() {
-    return this.databaseService.db;
-  }
 
   /**
    * Customer pays for one of their own pending orders. Runs as one
@@ -50,13 +63,11 @@ export class PaymentsService {
     userId: string,
     orderId: string,
     dto: CreatePaymentDto,
-  ): Promise<Payment> {
-    return this.db.transaction(async (tx) => {
-      const [order] = await tx
-        .select()
-        .from(orders)
-        .where(and(eq(orders.id, orderId), eq(orders.userId, userId)))
-        .limit(1);
+  ): Promise<PaymentDto> {
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: { id: orderId, userId },
+      });
 
       if (!order) {
         throw new NotFoundException(`Order ${orderId} not found`);
@@ -73,23 +84,22 @@ export class PaymentsService {
       // to would be a critical trust bug, not a feature.
       const result = callMockGateway(
         dto.provider,
-        order.total,
+        order.total.toNumber(),
         dto.simulateFailure ?? false,
       );
 
       let payment: Payment;
       try {
-        [payment] = await tx
-          .insert(payments)
-          .values({
+        payment = await tx.payment.create({
+          data: {
             orderId,
             provider: dto.provider,
             status: result.status,
             amount: order.total,
             transactionReference: result.transactionReference,
-            gatewayResponse: result.gatewayResponse,
-          })
-          .returning();
+            gatewayResponse: result.gatewayResponse as Prisma.InputJsonValue,
+          },
+        });
       } catch (error) {
         if (isUniqueViolation(error)) {
           throw new BadRequestException(
@@ -107,32 +117,25 @@ export class PaymentsService {
         );
       }
 
-      return payment;
+      return toPaymentDto(payment);
     });
   }
 
-  findAllForOrder(userId: string, orderId: string): Promise<Payment[]> {
-    return this.db
-      .select({
-        id: payments.id,
-        orderId: payments.orderId,
-        provider: payments.provider,
-        status: payments.status,
-        amount: payments.amount,
-        transactionReference: payments.transactionReference,
-        gatewayResponse: payments.gatewayResponse,
-        createdAt: payments.createdAt,
-        updatedAt: payments.updatedAt,
-      })
-      .from(payments)
-      .innerJoin(orders, eq(payments.orderId, orders.id))
-      .where(and(eq(payments.orderId, orderId), eq(orders.userId, userId)))
-      .orderBy(payments.createdAt);
+  async findAllForOrder(
+    userId: string,
+    orderId: string,
+  ): Promise<PaymentDto[]> {
+    const rows = await this.prisma.payment.findMany({
+      where: { orderId, order: { userId } },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return rows.map(toPaymentDto);
   }
 
   async findAllAdmin(
     query: PaymentQueryDto,
-  ): Promise<CursorPaginatedResult<Payment>> {
+  ): Promise<CursorPaginatedResult<PaymentDto>> {
     const { limit, cursor, status } = query;
 
     const [rawCreatedAt, rawId] = cursor
@@ -142,43 +145,38 @@ export class PaymentsService {
       typeof rawCreatedAt === 'string' ? new Date(rawCreatedAt) : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const pagination = withCursorPagination({
-      where: status ? eq(payments.status, status) : undefined,
+    const {
+      where,
+      orderBy,
+      limit: lim,
+    } = withCursorPagination({
+      where: status ? Prisma.sql`status = ${status}` : undefined,
       limit: limit + 1,
       cursors: [
-        [payments.createdAt, 'desc', createdAtCursor],
-        [payments.id, 'asc', idCursor],
+        ['created_at', 'desc', createdAtCursor],
+        ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.db
-      .select()
-      .from(payments)
-      .where(pagination.where)
-      .orderBy(...pagination.orderBy)
-      .limit(pagination.limit);
+    const rows = await this.prisma.$queryRaw<PaymentDto[]>(Prisma.sql`
+      SELECT ${PAYMENT_COLUMNS_SQL}
+      FROM payments
+      WHERE ${where}
+      ORDER BY ${orderBy}
+      LIMIT ${lim}
+    `);
 
-    const hasNextPage = rows.length > limit;
-    const data = hasNextPage ? rows.slice(0, limit) : rows;
-    const last = data.at(-1);
-    const nextCursor =
-      hasNextPage && last ? encodeCursor(last.createdAt, last.id) : null;
-
-    return { data, meta: { limit, hasNextPage, nextCursor } };
+    return toCursorPage(rows, limit, (last) => [last.createdAt, last.id]);
   }
 
-  async findOneAdmin(id: string): Promise<Payment> {
-    const [payment] = await this.db
-      .select()
-      .from(payments)
-      .where(eq(payments.id, id))
-      .limit(1);
+  async findOneAdmin(id: string): Promise<PaymentDto> {
+    const payment = await this.prisma.payment.findUnique({ where: { id } });
 
     if (!payment) {
       throw new NotFoundException(`Payment ${id} not found`);
     }
 
-    return payment;
+    return toPaymentDto(payment);
   }
 
   /**
@@ -188,13 +186,9 @@ export class PaymentsService {
    * through OrdersService — success finalizes inventory (reserved -> sold),
    * refund releases the order to `refunded`.
    */
-  async updateStatus(id: string, status: PaymentStatus): Promise<Payment> {
-    return this.db.transaction(async (tx) => {
-      const [payment] = await tx
-        .select()
-        .from(payments)
-        .where(eq(payments.id, id))
-        .limit(1);
+  async updateStatus(id: string, status: PaymentStatus): Promise<PaymentDto> {
+    return this.prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findUnique({ where: { id } });
 
       if (!payment) {
         throw new NotFoundException(`Payment ${id} not found`);
@@ -207,11 +201,10 @@ export class PaymentsService {
         );
       }
 
-      const [updated] = await tx
-        .update(payments)
-        .set({ status })
-        .where(eq(payments.id, id))
-        .returning();
+      const updated = await tx.payment.update({
+        where: { id },
+        data: { status },
+      });
 
       if (status === PaymentStatus.Success) {
         await this.ordersService.updateStatusWithTx(
@@ -227,7 +220,7 @@ export class PaymentsService {
         );
       }
 
-      return updated;
+      return toPaymentDto(updated);
     });
   }
 }

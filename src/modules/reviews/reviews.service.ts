@@ -6,20 +6,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, avg, count, eq, inArray } from 'drizzle-orm';
 import { OrderStatus } from '@/common/enums/order-status.enum';
 import type { CursorPaginatedResult } from '@/common/interfaces/cursor-paginated-result.interface';
-import { decodeCursor, encodeCursor } from '@/common/utils/cursor.util';
-import { withCursorPagination } from '@/common/utils/cursor-pagination.util';
-import { isUniqueViolation } from '@/common/utils/postgres-error.util';
-import { DatabaseService } from '@/database/database.service';
+import { decodeCursor } from '@/common/utils/cursor.util';
 import {
-  orderItems,
-  orders,
-  type Review,
-  reviews,
-  users,
-} from '@/database/schema';
+  toCursorPage,
+  withCursorPagination,
+} from '@/common/utils/cursor-pagination.util';
+import { isUniqueViolation } from '@/common/utils/postgres-error.util';
+import { PrismaService } from '@/database/prisma.service';
+import { Prisma } from '@/generated/prisma/client';
 import type { CreateReviewDto } from './dto/create-review.dto';
 import type {
   ReviewResponseDto,
@@ -52,11 +48,7 @@ export interface ReviewRow {
 
 @Injectable()
 export class ReviewsService {
-  constructor(private readonly databaseService: DatabaseService) {}
-
-  private get db() {
-    return this.databaseService.db;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(
     userId: string,
@@ -71,10 +63,9 @@ export class ReviewsService {
     }
 
     try {
-      const [review] = await this.db
-        .insert(reviews)
-        .values({ productId, userId, rating: dto.rating, comment: dto.comment })
-        .returning();
+      const review = await this.prisma.review.create({
+        data: { productId, userId, rating: dto.rating, comment: dto.comment },
+      });
 
       return this.findOneWithReviewer(review.id);
     } catch (error) {
@@ -100,62 +91,65 @@ export class ReviewsService {
       typeof rawCreatedAt === 'string' ? new Date(rawCreatedAt) : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const pagination = withCursorPagination({
-      where: eq(reviews.productId, productId),
+    const {
+      where,
+      orderBy,
+      limit: lim,
+    } = withCursorPagination({
+      where: Prisma.sql`r.product_id = ${productId}`,
       limit: limit + 1,
       cursors: [
-        [reviews.createdAt, 'desc', createdAtCursor],
-        [reviews.id, 'asc', idCursor],
+        ['created_at', 'desc', createdAtCursor],
+        ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.db
-      .select({
-        id: reviews.id,
-        productId: reviews.productId,
-        userId: reviews.userId,
-        reviewerName: users.firstName,
-        rating: reviews.rating,
-        comment: reviews.comment,
-        createdAt: reviews.createdAt,
-        updatedAt: reviews.updatedAt,
-      })
-      .from(reviews)
-      .innerJoin(users, eq(reviews.userId, users.id))
-      .where(pagination.where)
-      .orderBy(...pagination.orderBy)
-      .limit(pagination.limit);
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        productId: string;
+        userId: string;
+        reviewerName: string;
+        rating: number;
+        comment: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+      }>
+    >(Prisma.sql`
+      SELECT r.id, r.product_id AS "productId", r.user_id AS "userId",
+             u.first_name AS "reviewerName", r.rating, r.comment,
+             r.created_at AS "createdAt", r.updated_at AS "updatedAt"
+      FROM reviews r
+      INNER JOIN users u ON u.id = r.user_id
+      WHERE ${where}
+      ORDER BY ${orderBy}
+      LIMIT ${lim}
+    `);
 
-    const hasNextPage = rows.length > limit;
-    const data = hasNextPage ? rows.slice(0, limit) : rows;
-    const last = data.at(-1);
-    const nextCursor =
-      hasNextPage && last ? encodeCursor(last.createdAt, last.id) : null;
+    const page = toCursorPage(rows, limit, (last) => [last.createdAt, last.id]);
 
     return {
-      data: data.map((row) => ({
+      ...page,
+      data: page.data.map((row) => ({
         ...row,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
       })),
-      meta: { limit, hasNextPage, nextCursor },
     };
   }
 
   /** AVG + COUNT aggregation — the PRD's textbook GROUP-free aggregate query. */
   async getSummary(productId: string): Promise<ReviewSummaryResponseDto> {
-    const [row] = await this.db
-      .select({ reviewCount: count(), averageRating: avg(reviews.rating) })
-      .from(reviews)
-      .where(eq(reviews.productId, productId));
+    const { _count, _avg } = await this.prisma.review.aggregate({
+      where: { productId },
+      _count: true,
+      _avg: { rating: true },
+    });
 
     return {
-      reviewCount: row.reviewCount,
-      // Postgres's avg() over an integer column returns a numeric, which
-      // the driver hands back as a string — Number(null) is 0, not what
-      // "no reviews yet" should report, so that case is kept as null.
-      averageRating:
-        row.averageRating === null ? null : Number(row.averageRating),
+      reviewCount: _count,
+      // "no reviews yet" reports null, not 0.
+      averageRating: _avg.rating,
     };
   }
 
@@ -164,69 +158,64 @@ export class ReviewsService {
     reviewId: string,
     dto: UpdateReviewDto,
   ): Promise<ReviewRow> {
-    const [review] = await this.db
-      .update(reviews)
-      .set(dto)
-      .where(and(eq(reviews.id, reviewId), eq(reviews.userId, userId)))
-      .returning();
+    const { count } = await this.prisma.review.updateMany({
+      where: { id: reviewId, userId },
+      data: dto,
+    });
 
-    if (!review) {
+    if (count === 0) {
       throw new NotFoundException(`Review ${reviewId} not found`);
     }
 
-    return this.findOneWithReviewer(review.id);
+    return this.findOneWithReviewer(reviewId);
   }
 
-  async remove(userId: string, reviewId: string): Promise<Review> {
-    const [review] = await this.db
-      .delete(reviews)
-      .where(and(eq(reviews.id, reviewId), eq(reviews.userId, userId)))
-      .returning();
-
-    if (!review) {
-      throw new NotFoundException(`Review ${reviewId} not found`);
+  async remove(userId: string, reviewId: string) {
+    try {
+      return await this.prisma.review.delete({
+        where: { id: reviewId, userId },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Review ${reviewId} not found`);
+      }
+      throw error;
     }
-
-    return review;
   }
 
   private async isVerifiedBuyer(
     userId: string,
     productId: string,
   ): Promise<boolean> {
-    const [row] = await this.db
-      .select({ id: orderItems.id })
-      .from(orderItems)
-      .innerJoin(orders, eq(orderItems.orderId, orders.id))
-      .where(
-        and(
-          eq(orders.userId, userId),
-          eq(orderItems.productId, productId),
-          inArray(orders.status, VERIFIED_PURCHASE_STATUSES),
-        ),
-      )
-      .limit(1);
+    const row = await this.prisma.orderItem.findFirst({
+      where: {
+        productId,
+        order: { userId, status: { in: VERIFIED_PURCHASE_STATUSES } },
+      },
+      select: { id: true },
+    });
 
     return !!row;
   }
 
   private async findOneWithReviewer(id: string): Promise<ReviewRow> {
-    const [row] = await this.db
-      .select({
-        id: reviews.id,
-        productId: reviews.productId,
-        userId: reviews.userId,
-        reviewerName: users.firstName,
-        rating: reviews.rating,
-        comment: reviews.comment,
-        createdAt: reviews.createdAt,
-        updatedAt: reviews.updatedAt,
-      })
-      .from(reviews)
-      .innerJoin(users, eq(reviews.userId, users.id))
-      .where(eq(reviews.id, id))
-      .limit(1);
+    const review = await this.prisma.review.findUniqueOrThrow({
+      where: { id },
+      include: { user: { select: { firstName: true } } },
+    });
 
-    return row;
+    return {
+      id: review.id,
+      productId: review.productId,
+      userId: review.userId,
+      reviewerName: review.user.firstName,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+    };
   }
 }

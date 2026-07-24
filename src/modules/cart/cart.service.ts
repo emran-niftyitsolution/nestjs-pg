@@ -5,21 +5,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
 import { ProductStatus } from '@/common/enums/product-status.enum';
-import { DatabaseService } from '@/database/database.service';
-import { type Cart, cartItems, carts, products } from '@/database/schema';
+import { PrismaService } from '@/database/prisma.service';
+import type { Cart } from '@/generated/prisma/client';
 import type { AddCartItemDto } from './dto/add-cart-item.dto';
 import type { CartResponseDto } from './dto/cart-response.dto';
 import type { UpdateCartItemDto } from './dto/update-cart-item.dto';
 
 @Injectable()
 export class CartService {
-  constructor(private readonly databaseService: DatabaseService) {}
-
-  private get db() {
-    return this.databaseService.db;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   async getCart(userId: string): Promise<CartResponseDto> {
     const cart = await this.getOrCreateCart(userId);
@@ -29,15 +24,10 @@ export class CartService {
   async addItem(userId: string, dto: AddCartItemDto): Promise<CartResponseDto> {
     const cart = await this.getOrCreateCart(userId);
 
-    const [product] = await this.db
-      .select({
-        price: products.price,
-        stock: products.stock,
-        status: products.status,
-      })
-      .from(products)
-      .where(eq(products.id, dto.productId))
-      .limit(1);
+    const product = await this.prisma.product.findUnique({
+      where: { id: dto.productId },
+      select: { price: true, stock: true, status: true },
+    });
 
     if (!product || product.status !== ProductStatus.Active) {
       throw new NotFoundException(`Product ${dto.productId} not found`);
@@ -53,21 +43,21 @@ export class CartService {
       );
     }
 
-    await this.db
-      .insert(cartItems)
-      .values({
+    await this.prisma.cartItem.upsert({
+      where: {
+        cartId_productId: { cartId: cart.id, productId: dto.productId },
+      },
+      create: {
         cartId: cart.id,
         productId: dto.productId,
         quantity: dto.quantity,
         priceSnapshot: product.price,
-      })
-      .onConflictDoUpdate({
-        target: [cartItems.cartId, cartItems.productId],
-        set: {
-          quantity: sql`${cartItems.quantity} + ${dto.quantity}`,
-          priceSnapshot: product.price,
-        },
-      });
+      },
+      update: {
+        quantity: { increment: dto.quantity },
+        priceSnapshot: product.price,
+      },
+    });
 
     return this.buildCartResponse(cart);
   }
@@ -79,13 +69,12 @@ export class CartService {
   ): Promise<CartResponseDto> {
     const cart = await this.getOrCreateCart(userId);
 
-    const [item] = await this.db
-      .update(cartItems)
-      .set({ quantity: dto.quantity })
-      .where(and(eq(cartItems.id, itemId), eq(cartItems.cartId, cart.id)))
-      .returning();
+    const { count } = await this.prisma.cartItem.updateMany({
+      where: { id: itemId, cartId: cart.id },
+      data: { quantity: dto.quantity },
+    });
 
-    if (!item) {
+    if (count === 0) {
       throw new NotFoundException(`Cart item ${itemId} not found`);
     }
 
@@ -95,12 +84,11 @@ export class CartService {
   async removeItem(userId: string, itemId: string): Promise<CartResponseDto> {
     const cart = await this.getOrCreateCart(userId);
 
-    const [item] = await this.db
-      .delete(cartItems)
-      .where(and(eq(cartItems.id, itemId), eq(cartItems.cartId, cart.id)))
-      .returning();
+    const { count } = await this.prisma.cartItem.deleteMany({
+      where: { id: itemId, cartId: cart.id },
+    });
 
-    if (!item) {
+    if (count === 0) {
       throw new NotFoundException(`Cart item ${itemId} not found`);
     }
 
@@ -109,7 +97,7 @@ export class CartService {
 
   async clearCart(userId: string): Promise<CartResponseDto> {
     const cart = await this.getOrCreateCart(userId);
-    await this.db.delete(cartItems).where(eq(cartItems.cartId, cart.id));
+    await this.prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
     return this.buildCartResponse(cart);
   }
 
@@ -118,39 +106,40 @@ export class CartService {
    * same user race to insert, and Postgres resolves the conflict atomically
    * instead of one request crashing on a unique-violation.
    */
-  private async getOrCreateCart(userId: string): Promise<Cart> {
-    const [cart] = await this.db
-      .insert(carts)
-      .values({ userId })
-      .onConflictDoUpdate({
-        target: carts.userId,
-        set: { updatedAt: new Date() },
-      })
-      .returning();
-
-    return cart;
+  private getOrCreateCart(userId: string): Promise<Cart> {
+    return this.prisma.cart.upsert({
+      where: { userId },
+      create: { userId },
+      update: { updatedAt: new Date() },
+    });
   }
 
   private async buildCartResponse(cart: Cart): Promise<CartResponseDto> {
-    const rows = await this.db
-      .select({
-        id: cartItems.id,
-        productId: cartItems.productId,
-        productName: products.name,
-        productSlug: products.slug,
-        quantity: cartItems.quantity,
-        priceSnapshot: cartItems.priceSnapshot,
-        currentPrice: products.price,
-      })
-      .from(cartItems)
-      .innerJoin(products, eq(cartItems.productId, products.id))
-      .where(eq(cartItems.cartId, cart.id))
-      .orderBy(cartItems.createdAt);
+    const rows = await this.prisma.cartItem.findMany({
+      where: { cartId: cart.id },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        productId: true,
+        quantity: true,
+        priceSnapshot: true,
+        product: { select: { name: true, slug: true, price: true } },
+      },
+    });
 
-    const items = rows.map((row) => ({
-      ...row,
-      lineTotal: Math.round(row.quantity * row.priceSnapshot * 100) / 100,
-    }));
+    const items = rows.map((row) => {
+      const priceSnapshot = row.priceSnapshot.toNumber();
+      return {
+        id: row.id,
+        productId: row.productId,
+        productName: row.product.name,
+        productSlug: row.product.slug,
+        quantity: row.quantity,
+        priceSnapshot,
+        currentPrice: row.product.price.toNumber(),
+        lineTotal: Math.round(row.quantity * priceSnapshot * 100) / 100,
+      };
+    });
 
     return {
       id: cart.id,

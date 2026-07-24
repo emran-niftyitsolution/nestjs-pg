@@ -27,7 +27,9 @@ async function bootstrap() {
 
   Logger.log(`Application is running on: http://localhost:${port}`);
   Logger.log(`API docs available at: http://localhost:${port}/docs`);
-  Logger.log(`GraphQL playground available at: http://localhost:${port}/graphql`);
+  Logger.log(
+    `GraphQL playground available at: http://localhost:${port}/graphql`,
+  );
 }
 bootstrap().catch((err) => {
   Logger.error('Error during bootstrap', err);

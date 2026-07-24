@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo \"---views in schema---\" && grep -n \"^view\\\\|^model\" prisma/schema.prisma && echo \"---view fields sample---\" && sed -n '/^view BestSellingProductsView/,/^}/p' prisma/schema.prisma && echo \"---db-transaction usages---\" && grep -rn \"DbTransaction\" src --include=\"*.ts\" && echo \"---package.json prisma section---\" && grep -n \"\\\\\"prisma\\\\|@prisma\" package.json && echo \"---searchVector schema---\" && grep -n -B2 -A2 \"searchVector\\\\|search_vector\" prisma/schema.prisma)",
+      "Bash(python3 -c ' *)"
+    ],
+    "additionalDirectories": [
+      "/Users/emransmacmini/Documents/emran/nestjs-pg/prisma"
+    ]
+  }
+}
