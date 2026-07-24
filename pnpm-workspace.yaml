@@ -5,6 +5,7 @@ allowBuilds:
   argon2: true
   esbuild: true
   prisma: true
+  unrs-resolver: true
 onlyBuiltDependencies:
   - '@prisma/engines'
   - argon2

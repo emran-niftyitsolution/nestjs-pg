@@ -1,11 +1,11 @@
 // src/database/db-transaction.type.ts
 
-import type { PrismaService } from './prisma.service';
+import type { DatabaseService } from './database.service';
 
-// Derived from PrismaService's own $transaction() signature rather than
-// hand-naming Prisma's internal TransactionClient generics.
+// Derived from DatabaseService's own transaction() signature rather than
+// hand-naming drizzle's internal HKT generics for PgAsyncTransaction.
 export type DbTransaction = Parameters<
-  PrismaService['prisma']['$transaction']
+  DatabaseService['db']['transaction']
 >[0] extends (tx: infer T) => unknown
   ? T
   : never;
