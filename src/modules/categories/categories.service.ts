@@ -27,11 +27,6 @@ interface CategoryTreeRow extends Category {
   depth: number;
 }
 
-const CATEGORY_COLUMNS_SQL = Prisma.sql`
-  id, name, slug, description, parent_id AS "parentId", sort_order AS "sortOrder",
-  is_active AS "isActive", created_at AS "createdAt", updated_at AS "updatedAt"
-`;
-
 @Injectable()
 export class CategoriesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -69,9 +64,9 @@ export class CategoriesService {
     const { limit, cursor, parentId, topLevelOnly } = query;
 
     const filterWhere = topLevelOnly
-      ? Prisma.sql`parent_id IS NULL`
+      ? { parentId: null }
       : parentId
-        ? Prisma.sql`parent_id = ${parentId}`
+        ? { parentId }
         : undefined;
 
     const [rawSortOrder, rawId] = cursor
@@ -81,26 +76,20 @@ export class CategoriesService {
       typeof rawSortOrder === 'number' ? rawSortOrder : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const {
-      where,
-      orderBy,
-      limit: lim,
-    } = withCursorPagination({
+    const { where, orderBy, take } = withCursorPagination({
       where: filterWhere,
       limit: limit + 1,
       cursors: [
-        ['sort_order', 'asc', sortOrderCursor],
+        ['sortOrder', 'asc', sortOrderCursor],
         ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.prisma.$queryRaw<Category[]>(Prisma.sql`
-      SELECT ${CATEGORY_COLUMNS_SQL}
-      FROM categories
-      WHERE ${where}
-      ORDER BY ${orderBy}
-      LIMIT ${lim}
-    `);
+    const rows = await this.prisma.category.findMany({
+      where: where as Prisma.CategoryWhereInput,
+      orderBy: orderBy as Prisma.CategoryOrderByWithRelationInput[],
+      take,
+    });
 
     return toCursorPage(rows, limit, (last) => [last.sortOrder, last.id]);
   }

@@ -89,31 +89,27 @@ export class CouponsService {
       typeof rawCreatedAt === 'string' ? new Date(rawCreatedAt) : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const {
-      where,
-      orderBy,
-      limit: lim,
-    } = withCursorPagination({
-      where:
-        isActive === undefined
-          ? undefined
-          : Prisma.sql`is_active = ${isActive}`,
+    const { where, orderBy, take } = withCursorPagination({
+      where: isActive === undefined ? undefined : { isActive },
       limit: limit + 1,
       cursors: [
-        ['created_at', 'desc', createdAtCursor],
+        ['createdAt', 'desc', createdAtCursor],
         ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.prisma.$queryRaw<CouponDto[]>(Prisma.sql`
-      SELECT ${COUPON_COLUMNS_SQL}
-      FROM coupons
-      WHERE ${where}
-      ORDER BY ${orderBy}
-      LIMIT ${lim}
-    `);
+    const rows = await this.prisma.coupon.findMany({
+      where: where as Prisma.CouponWhereInput,
+      orderBy: orderBy as Prisma.CouponOrderByWithRelationInput[],
+      take,
+    });
 
-    return toCursorPage(rows, limit, (last) => [last.createdAt, last.id]);
+    return toCursorPage(
+      rows,
+      limit,
+      (last) => [last.createdAt, last.id],
+      toCouponDto,
+    );
   }
 
   async findOne(id: string): Promise<CouponDto> {
@@ -174,6 +170,11 @@ export class CouponsService {
     }
   }
 
+  /**
+   * Raw SQL to hit the `upper(code)` unique functional index directly —
+   * same reasoning as UsersService.findByEmail: Prisma's `mode:
+   * 'insensitive'` compiles to ILIKE, which wouldn't use that index.
+   */
   async validate(
     code: string,
     purchaseAmount: number,

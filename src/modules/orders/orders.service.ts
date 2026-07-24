@@ -78,8 +78,7 @@ const NOTIFICATION_FOR_STATUS: Partial<
 // Order.subtotal/discountAmount/total and OrderItem.unitPrice/taxAmount/
 // lineTotal are Prisma Decimal on read — every internal representation past
 // this point is plain numbers, converted once at the point each row comes
-// back from Prisma Client (toOrderRow/toOrderItemRow) or cast directly to
-// ::float8 in the raw-SQL cursor-pagination path (queryOrders).
+// back from Prisma Client (toOrderRow/toOrderItemRow).
 interface OrderRow {
   id: string;
   userId: string;
@@ -124,16 +123,6 @@ function toOrderItemRow(item: PrismaOrderItem): OrderItemRow {
     lineTotal: item.lineTotal.toNumber(),
   };
 }
-
-const ORDER_COLUMNS_SQL = Prisma.sql`
-  id, user_id AS "userId", status,
-  subtotal::float8 AS subtotal,
-  discount_amount::float8 AS "discountAmount",
-  coupon_code AS "couponCode",
-  shipping_address AS "shippingAddress",
-  total::float8 AS total,
-  created_at AS "createdAt", updated_at AS "updatedAt"
-`;
 
 @Injectable()
 export class OrdersService {
@@ -270,7 +259,7 @@ export class OrdersService {
     userId: string,
     query: OrderQueryDto,
   ): Promise<CursorPaginatedResult<OrderResponseDto>> {
-    return this.queryOrders(query, Prisma.sql`user_id = ${userId}`);
+    return this.queryOrders(query, { userId });
   }
 
   findAllAdmin(
@@ -413,7 +402,7 @@ export class OrdersService {
 
   private async queryOrders(
     query: OrderQueryDto,
-    scopeWhere: Prisma.Sql | undefined,
+    scopeWhere: Prisma.OrderWhereInput | undefined,
   ): Promise<CursorPaginatedResult<OrderResponseDto>> {
     const { limit, cursor, status } = query;
 
@@ -424,34 +413,32 @@ export class OrdersService {
       typeof rawCreatedAt === 'string' ? new Date(rawCreatedAt) : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const statusWhere = status ? Prisma.sql`status = ${status}` : undefined;
-    const baseWhere =
-      scopeWhere && statusWhere
-        ? Prisma.sql`${scopeWhere} AND ${statusWhere}`
-        : (scopeWhere ?? statusWhere);
+    const baseWhere: Prisma.OrderWhereInput = {
+      ...scopeWhere,
+      ...(status ? { status } : {}),
+    };
 
-    const {
-      where,
-      orderBy,
-      limit: lim,
-    } = withCursorPagination({
-      where: baseWhere,
+    const { where, orderBy, take } = withCursorPagination({
+      where: Object.keys(baseWhere).length ? baseWhere : undefined,
       limit: limit + 1,
       cursors: [
-        ['created_at', 'desc', createdAtCursor],
+        ['createdAt', 'desc', createdAtCursor],
         ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.prisma.$queryRaw<OrderRow[]>(Prisma.sql`
-      SELECT ${ORDER_COLUMNS_SQL}
-      FROM orders
-      WHERE ${where}
-      ORDER BY ${orderBy}
-      LIMIT ${lim}
-    `);
+    const rows = await this.prisma.order.findMany({
+      where: where as Prisma.OrderWhereInput,
+      orderBy: orderBy as Prisma.OrderOrderByWithRelationInput[],
+      take,
+    });
 
-    const page = toCursorPage(rows, limit, (last) => [last.createdAt, last.id]);
+    const page = toCursorPage(
+      rows,
+      limit,
+      (last) => [last.createdAt, last.id],
+      toOrderRow,
+    );
 
     const itemsByOrder = await this.getItemsForOrders(
       page.data.map((order) => order.id),

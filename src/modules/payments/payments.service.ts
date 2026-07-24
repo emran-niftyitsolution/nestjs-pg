@@ -38,13 +38,6 @@ function toPaymentDto(payment: Payment): PaymentDto {
   return { ...payment, amount: payment.amount.toNumber() };
 }
 
-const PAYMENT_COLUMNS_SQL = Prisma.sql`
-  id, order_id AS "orderId", provider, status, amount::float8 AS amount,
-  transaction_reference AS "transactionReference",
-  gateway_response AS "gatewayResponse",
-  created_at AS "createdAt", updated_at AS "updatedAt"
-`;
-
 @Injectable()
 export class PaymentsService {
   constructor(
@@ -145,28 +138,27 @@ export class PaymentsService {
       typeof rawCreatedAt === 'string' ? new Date(rawCreatedAt) : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const {
-      where,
-      orderBy,
-      limit: lim,
-    } = withCursorPagination({
-      where: status ? Prisma.sql`status = ${status}` : undefined,
+    const { where, orderBy, take } = withCursorPagination({
+      where: status ? { status } : undefined,
       limit: limit + 1,
       cursors: [
-        ['created_at', 'desc', createdAtCursor],
+        ['createdAt', 'desc', createdAtCursor],
         ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.prisma.$queryRaw<PaymentDto[]>(Prisma.sql`
-      SELECT ${PAYMENT_COLUMNS_SQL}
-      FROM payments
-      WHERE ${where}
-      ORDER BY ${orderBy}
-      LIMIT ${lim}
-    `);
+    const rows = await this.prisma.payment.findMany({
+      where: where as Prisma.PaymentWhereInput,
+      orderBy: orderBy as Prisma.PaymentOrderByWithRelationInput[],
+      take,
+    });
 
-    return toCursorPage(rows, limit, (last) => [last.createdAt, last.id]);
+    return toCursorPage(
+      rows,
+      limit,
+      (last) => [last.createdAt, last.id],
+      toPaymentDto,
+    );
   }
 
   async findOneAdmin(id: string): Promise<PaymentDto> {

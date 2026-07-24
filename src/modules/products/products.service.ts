@@ -35,7 +35,7 @@ const SEARCH_RESULT_LIMIT = 50;
 // strip here, unlike the old `$inferSelect` Drizzle type.
 // Product.price/weightKg are Prisma Decimal on read — the API contract is
 // plain numbers, converted once at this boundary (toSafeProduct) or cast
-// directly to ::float8 in the raw-SQL list/search paths below.
+// directly to ::float8 in the raw-SQL full-text search path below.
 export type SafeProduct = Omit<Product, 'price' | 'weightKg'> & {
   price: number;
   weightKg: number | null;
@@ -53,6 +53,17 @@ function toSafeProduct(product: Product): SafeProduct {
   };
 }
 
+// category/brand slugs are resolved to ids once in queryProducts, then
+// shared by both the query-builder list path (paginateProducts) and the
+// raw-SQL full-text-search path (searchProducts).
+interface ProductFilters {
+  status?: ProductStatus;
+  categoryId?: string;
+  brandId?: string;
+}
+
+// Only searchProducts needs a hand-built column list — ts_rank/tsquery over
+// the raw-SQL full-text-search path have no query-builder equivalent.
 const PRODUCT_COLUMNS_SQL = Prisma.sql`
   id, name, slug, description, sku,
   price::float8 AS price,
@@ -211,10 +222,7 @@ export class ProductsService {
       sort = ProductSort.Newest,
     } = query;
 
-    const conditions: Prisma.Sql[] = [];
-    if (forcedStatus) {
-      conditions.push(Prisma.sql`status = ${forcedStatus}`);
-    }
+    const filters: ProductFilters = { status: forcedStatus };
 
     if (category) {
       const found = await this.prisma.category.findUnique({
@@ -222,7 +230,7 @@ export class ProductsService {
         select: { id: true },
       });
       if (!found) return this.emptyPage(limit);
-      conditions.push(Prisma.sql`category_id = ${found.id}`);
+      filters.categoryId = found.id;
     }
 
     if (brand) {
@@ -231,14 +239,14 @@ export class ProductsService {
         select: { id: true },
       });
       if (!found) return this.emptyPage(limit);
-      conditions.push(Prisma.sql`brand_id = ${found.id}`);
+      filters.brandId = found.id;
     }
 
     if (search) {
-      return this.searchProducts(search, conditions, limit);
+      return this.searchProducts(search, filters, limit);
     }
 
-    return this.paginateProducts(sort, conditions, limit, cursor);
+    return this.paginateProducts(sort, filters, limit, cursor);
   }
 
   private emptyPage(
@@ -260,13 +268,21 @@ export class ProductsService {
    */
   private async searchProducts(
     search: string,
-    conditions: Prisma.Sql[],
+    filters: ProductFilters,
     limit: number,
   ): Promise<CursorPaginatedResult<ProductWithFinalPrice>> {
     const tsQuery = Prisma.sql`websearch_to_tsquery('english', ${search})`;
-    const whereSql = conditions.length
-      ? Prisma.sql`${Prisma.join(conditions, ' AND ')} AND search_vector @@ ${tsQuery}`
-      : Prisma.sql`search_vector @@ ${tsQuery}`;
+    const conditions: Prisma.Sql[] = [Prisma.sql`search_vector @@ ${tsQuery}`];
+    if (filters.status) {
+      conditions.push(Prisma.sql`status = ${filters.status}`);
+    }
+    if (filters.categoryId) {
+      conditions.push(Prisma.sql`category_id = ${filters.categoryId}`);
+    }
+    if (filters.brandId) {
+      conditions.push(Prisma.sql`brand_id = ${filters.brandId}`);
+    }
+    const whereSql = Prisma.join(conditions, ' AND ');
 
     const rows = await this.prisma.$queryRaw<SafeProduct[]>(Prisma.sql`
       SELECT ${PRODUCT_COLUMNS_SQL}
@@ -284,7 +300,7 @@ export class ProductsService {
 
   private async paginateProducts(
     sort: ProductSort,
-    conditions: Prisma.Sql[],
+    filters: ProductFilters,
     limit: number,
     cursor?: string,
   ): Promise<CursorPaginatedResult<ProductWithFinalPrice>> {
@@ -302,7 +318,7 @@ export class ProductsService {
     }
 
     const isPriceSort = sort !== ProductSort.Newest;
-    const primaryColumn = isPriceSort ? 'price' : 'created_at';
+    const primaryField = isPriceSort ? 'price' : 'createdAt';
     const primaryOrder: 'asc' | 'desc' =
       sort === ProductSort.PriceAsc ? 'asc' : 'desc';
     const primaryCursor = isPriceSort
@@ -314,32 +330,37 @@ export class ProductsService {
         : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const {
-      where,
-      orderBy,
-      limit: lim,
-    } = withCursorPagination({
-      where: conditions.length ? Prisma.join(conditions, ' AND ') : undefined,
+    const baseWhere: Prisma.ProductWhereInput = {
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
+      ...(filters.brandId ? { brandId: filters.brandId } : {}),
+    };
+
+    const { where, orderBy, take } = withCursorPagination({
+      where: Object.keys(baseWhere).length ? baseWhere : undefined,
       limit: limit + 1,
       cursors: [
-        [primaryColumn, primaryOrder, primaryCursor],
+        [primaryField, primaryOrder, primaryCursor],
         ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.prisma.$queryRaw<SafeProduct[]>(Prisma.sql`
-      SELECT ${PRODUCT_COLUMNS_SQL}
-      FROM products
-      WHERE ${where}
-      ORDER BY ${orderBy}
-      LIMIT ${lim}
-    `);
+    const rows = await this.prisma.product.findMany({
+      where: where as Prisma.ProductWhereInput,
+      orderBy: orderBy as Prisma.ProductOrderByWithRelationInput[],
+      take,
+    });
 
-    const page = toCursorPage(rows, limit, (last) => [
-      sort,
-      isPriceSort ? last.price : last.createdAt,
-      last.id,
-    ]);
+    const page = toCursorPage(
+      rows,
+      limit,
+      (last) => [
+        sort,
+        isPriceSort ? last.price.toNumber() : last.createdAt,
+        last.id,
+      ],
+      toSafeProduct,
+    );
 
     return {
       ...page,

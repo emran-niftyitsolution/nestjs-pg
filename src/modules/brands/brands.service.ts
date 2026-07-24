@@ -50,8 +50,7 @@ export class BrandsService {
   async findAll(query: BrandQueryDto): Promise<CursorPaginatedResult<Brand>> {
     const { limit, cursor, isActive } = query;
 
-    const filterWhere =
-      isActive === undefined ? undefined : Prisma.sql`is_active = ${isActive}`;
+    const filterWhere = isActive === undefined ? undefined : { isActive };
 
     const [rawName, rawId] = cursor
       ? decodeCursor(cursor)
@@ -59,11 +58,7 @@ export class BrandsService {
     const nameCursor = typeof rawName === 'string' ? rawName : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const {
-      where,
-      orderBy,
-      limit: lim,
-    } = withCursorPagination({
+    const { where, orderBy, take } = withCursorPagination({
       where: filterWhere,
       limit: limit + 1,
       cursors: [
@@ -72,15 +67,11 @@ export class BrandsService {
       ],
     });
 
-    const rows = await this.prisma.$queryRaw<Brand[]>(Prisma.sql`
-      SELECT id, name, slug, description, logo_url AS "logoUrl", website,
-             is_active AS "isActive",
-             created_at AS "createdAt", updated_at AS "updatedAt"
-      FROM brands
-      WHERE ${where}
-      ORDER BY ${orderBy}
-      LIMIT ${lim}
-    `);
+    const rows = await this.prisma.brand.findMany({
+      where: where as Prisma.BrandWhereInput,
+      orderBy: orderBy as Prisma.BrandOrderByWithRelationInput[],
+      take,
+    });
 
     return toCursorPage(rows, limit, (last) => [last.name, last.id]);
   }

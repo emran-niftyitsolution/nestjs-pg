@@ -1,87 +1,79 @@
 // src/common/utils/cursor-pagination.util.ts
 
 import type { CursorPaginatedResult } from '@/common/interfaces/cursor-paginated-result.interface';
-import { Prisma } from '@/generated/prisma/client';
 import { encodeCursor } from './cursor.util';
 
 export type SortDirection = 'asc' | 'desc';
 
-// `column` is the raw Postgres column name (snake_case, matching each
-// model's @map in schema.prisma) — it goes straight into a $queryRaw
-// template via Prisma.raw, so it must only ever come from a fixed,
+// `field` is a Prisma model field name (camelCase, matching schema.prisma —
+// not the raw snake_case DB column), used as an object key into a
+// Prisma `where`/`orderBy` input, so it must only ever come from a fixed,
 // TS-known string at the call site, never from user input.
 export type CursorTuple =
-  | readonly [column: string, direction: SortDirection]
-  | readonly [column: string, direction: SortDirection, cursorValue: unknown];
+  | readonly [field: string, direction: SortDirection]
+  | readonly [field: string, direction: SortDirection, cursorValue: unknown];
 
-export interface CursorPaginationSqlOptions {
-  // Base filter as a bare Prisma.Sql fragment with no leading WHERE.
-  // Omit when there's no base filter.
-  where?: Prisma.Sql;
+export interface CursorPaginationQBOptions {
+  // Base filter as a plain Prisma where object (untyped here since this
+  // utility is model-agnostic) — cast the result back to the caller's own
+  // `Prisma.XWhereInput` at the call site. Omit when there's no base filter.
+  where?: Record<string, unknown>;
   limit: number;
   cursors: readonly [CursorTuple] | readonly [CursorTuple, CursorTuple];
 }
 
-export interface CursorPaginationSql {
-  // Always non-empty (`true` when there's neither a base filter nor a
-  // cursor yet) so callers can always write `WHERE ${where}` unconditionally.
-  where: Prisma.Sql;
-  // Bare `col1 dir1, col2 dir2` fragment — splice directly after ORDER BY.
-  orderBy: Prisma.Sql;
-  limit: number;
+export interface CursorPaginationQB {
+  // Always a plain object (`{}` when there's neither a base filter nor a
+  // cursor yet) so callers can always pass this straight to `findMany`.
+  where: Record<string, unknown>;
+  // One entry per cursor column, in order — pass straight to `orderBy`.
+  orderBy: Array<Record<string, SortDirection>>;
+  take: number;
 }
 
-const quoteIdent = (name: string): Prisma.Sql => Prisma.raw(`"${name}"`);
-
-function seekPredicate(
+function seekWhere(
   cursors: readonly [CursorTuple] | readonly [CursorTuple, CursorTuple],
-): Prisma.Sql | undefined {
-  const [[col1, dir1, v1], second] = cursors;
+): Record<string, unknown> | undefined {
+  const [[field1, dir1, v1], second] = cursors;
   if (v1 === undefined) return undefined; // first page: no seek filter yet
 
-  const gt1 = dir1 === 'asc' ? Prisma.sql`>` : Prisma.sql`<`;
-  const primary = Prisma.sql`${quoteIdent(col1)} ${gt1} ${v1}`;
+  const op1 = dir1 === 'asc' ? 'gt' : 'lt';
+  const primary = { [field1]: { [op1]: v1 } };
 
   if (!second || second[2] === undefined) {
     return primary;
   }
 
-  const [col2, dir2, v2] = second;
-  const gt2 = dir2 === 'asc' ? Prisma.sql`>` : Prisma.sql`<`;
+  const [field2, dir2, v2] = second;
+  const op2 = dir2 === 'asc' ? 'gt' : 'lt';
 
   // OR-decomposed composite seek predicate — not a row-value comparison
   // `(col1, col2) > (v1, v2)`, which only works when every column sorts in
   // the same direction. Needed because the tiebreaker (id) is always
   // ascending while the primary sort column can be either.
-  return Prisma.sql`(${primary}) OR (${quoteIdent(col1)} = ${v1} AND ${quoteIdent(col2)} ${gt2} ${v2})`;
+  return { OR: [primary, { [field1]: v1, [field2]: { [op2]: v2 } }] };
 }
 
 /**
- * Builds a keyset-pagination WHERE/ORDER BY fragment pair for a 1-2 column
- * composite cursor, for splicing into a $queryRaw template. Replaces the old
- * drizzle-pagination wrapper; same shape (where/orderBy/limit), Prisma.sql
- * instead of drizzle SQL.
+ * Builds a keyset-pagination where/orderBy pair for a 1-2 column composite
+ * cursor, as plain Prisma Client query-builder input — pass straight to
+ * `findMany({ where, orderBy, take })`. Replaces the earlier raw-SQL
+ * ($queryRaw + Prisma.sql) version: the same OR-decomposed seek predicate,
+ * expressed as Prisma's `where` DSL instead of hand-built SQL.
  */
 export function withCursorPagination(
-  options: CursorPaginationSqlOptions,
-): CursorPaginationSql {
-  const predicate = seekPredicate(options.cursors);
+  options: CursorPaginationQBOptions,
+): CursorPaginationQB {
+  const seek = seekWhere(options.cursors);
   const base = options.where;
 
-  const where =
-    base && predicate
-      ? Prisma.sql`(${base}) AND (${predicate})`
-      : (predicate ?? base ?? Prisma.sql`true`);
+  const where = base && seek ? { AND: [base, seek] } : (seek ?? base ?? {});
 
-  const orderBy = Prisma.join(
-    options.cursors.map(
-      ([column, direction]) =>
-        Prisma.sql`${quoteIdent(column)} ${Prisma.raw(direction)}`,
-    ),
-    ', ',
-  );
+  const orderBy = options.cursors.map(([field, direction]) => ({
+    [field]: direction,
+  }));
 
-  return { where, orderBy, limit: options.limit };
+  return { where, orderBy, take: options.limit };
 }
 
 /**

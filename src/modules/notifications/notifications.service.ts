@@ -56,31 +56,22 @@ export class NotificationsService {
       typeof rawCreatedAt === 'string' ? new Date(rawCreatedAt) : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const scopeWhere = unreadOnly
-      ? Prisma.sql`user_id = ${userId} AND read_at IS NULL`
-      : Prisma.sql`user_id = ${userId}`;
+    const scopeWhere = unreadOnly ? { userId, readAt: null } : { userId };
 
-    const {
-      where,
-      orderBy,
-      limit: lim,
-    } = withCursorPagination({
+    const { where, orderBy, take } = withCursorPagination({
       where: scopeWhere,
       limit: limit + 1,
       cursors: [
-        ['created_at', 'desc', createdAtCursor],
+        ['createdAt', 'desc', createdAtCursor],
         ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.prisma.$queryRaw<Notification[]>(Prisma.sql`
-      SELECT id, user_id AS "userId", type, title, message, metadata,
-             read_at AS "readAt", created_at AS "createdAt"
-      FROM notifications
-      WHERE ${where}
-      ORDER BY ${orderBy}
-      LIMIT ${lim}
-    `);
+    const rows = await this.prisma.notification.findMany({
+      where: where as Prisma.NotificationWhereInput,
+      orderBy: orderBy as Prisma.NotificationOrderByWithRelationInput[],
+      take,
+    });
 
     return toCursorPage(rows, limit, (last) => [last.createdAt, last.id]);
   }

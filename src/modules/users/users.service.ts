@@ -83,28 +83,20 @@ export class UsersService {
       typeof rawCreatedAt === 'string' ? new Date(rawCreatedAt) : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const {
-      where,
-      orderBy,
-      limit: lim,
-    } = withCursorPagination({
+    const { where, orderBy, take } = withCursorPagination({
       limit: limit + 1,
       cursors: [
-        ['created_at', 'desc', createdAtCursor],
+        ['createdAt', 'desc', createdAtCursor],
         ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.prisma.$queryRaw<SafeUser[]>(Prisma.sql`
-      SELECT id, first_name AS "firstName", last_name AS "lastName", email,
-             phone, avatar, role, is_active AS "isActive",
-             email_verified AS "emailVerified",
-             created_at AS "createdAt", updated_at AS "updatedAt"
-      FROM users
-      WHERE ${where}
-      ORDER BY ${orderBy}
-      LIMIT ${lim}
-    `);
+    const rows = await this.prisma.user.findMany({
+      where: where as Prisma.UserWhereInput,
+      orderBy: orderBy as Prisma.UserOrderByWithRelationInput[],
+      take,
+      select: safeSelect,
+    });
 
     return toCursorPage(rows, limit, (last) => [last.createdAt, last.id]);
   }

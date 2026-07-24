@@ -91,51 +91,37 @@ export class ReviewsService {
       typeof rawCreatedAt === 'string' ? new Date(rawCreatedAt) : undefined;
     const idCursor = typeof rawId === 'string' ? rawId : undefined;
 
-    const {
-      where,
-      orderBy,
-      limit: lim,
-    } = withCursorPagination({
-      where: Prisma.sql`r.product_id = ${productId}`,
+    const { where, orderBy, take } = withCursorPagination({
+      where: { productId },
       limit: limit + 1,
       cursors: [
-        ['created_at', 'desc', createdAtCursor],
+        ['createdAt', 'desc', createdAtCursor],
         ['id', 'asc', idCursor],
       ],
     });
 
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        productId: string;
-        userId: string;
-        reviewerName: string;
-        rating: number;
-        comment: string | null;
-        createdAt: Date;
-        updatedAt: Date;
-      }>
-    >(Prisma.sql`
-      SELECT r.id, r.product_id AS "productId", r.user_id AS "userId",
-             u.first_name AS "reviewerName", r.rating, r.comment,
-             r.created_at AS "createdAt", r.updated_at AS "updatedAt"
-      FROM reviews r
-      INNER JOIN users u ON u.id = r.user_id
-      WHERE ${where}
-      ORDER BY ${orderBy}
-      LIMIT ${lim}
-    `);
+    const rows = await this.prisma.review.findMany({
+      where: where as Prisma.ReviewWhereInput,
+      orderBy: orderBy as Prisma.ReviewOrderByWithRelationInput[],
+      take,
+      include: { user: { select: { firstName: true } } },
+    });
 
-    const page = toCursorPage(rows, limit, (last) => [last.createdAt, last.id]);
-
-    return {
-      ...page,
-      data: page.data.map((row) => ({
-        ...row,
+    return toCursorPage(
+      rows,
+      limit,
+      (last) => [last.createdAt, last.id],
+      (row) => ({
+        id: row.id,
+        productId: row.productId,
+        userId: row.userId,
+        reviewerName: row.user.firstName,
+        rating: row.rating,
+        comment: row.comment,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
-      })),
-    };
+      }),
+    );
   }
 
   /** AVG + COUNT aggregation — the PRD's textbook GROUP-free aggregate query. */
